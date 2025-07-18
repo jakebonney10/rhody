@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+
+  <arg name="vessel_ns"       default="rhody"/>
+  <arg name="vessel_config"   default="rhody"/>
+
+  <include file="$(find-pkg-share rhody)/launch/publish_urdf.launch.py"/>
+
+</launch>
