@@ -16,7 +16,7 @@ subsonus2ros.py
 This script processes raw data from Subsonus USBL ANPP logs and converts it into ROS 2 bag files for use in robot localization. The Subsonus sensor provides acoustic positioning data in the NED (North-East-Down) coordinate frame, which is transformed into the ENU (East-North-Up) coordinate frame expected by ROS 2.
 
 Key Features:
-- Reads Subsonus USBL ANPP logs from a CSV file (`State.csv`).
+- Reads Subsonus USBL ANPP logs from a CSV file (`State.csv` or `RemoteSubsonusState.csv`).
 - Converts NED coordinate frame data to ENU coordinate frame.
 - Creates ROS 2 bag files containing `NavSatFix` and `Imu` messages.
 - Handles data validation and formatting errors gracefully.
@@ -55,6 +55,7 @@ Notes:
 frame_id = "usbl_link"
 namespace = "nav/sensors/subsonus_usbl"
 output_dir = "subsonus_bag"
+fn = "RemoteSubsonusState_2.csv"
 
 def euler_to_quaternion(roll, pitch, yaw):
     roll = np.radians(roll)
@@ -99,7 +100,7 @@ def make_ros_time(unix_sec, micros):
 
 def main():
     rclpy.init()
-    df = pd.read_csv("State.csv")
+    df = pd.read_csv(fn)
     df.columns = df.columns.str.strip()
 
     numeric_fields = [
