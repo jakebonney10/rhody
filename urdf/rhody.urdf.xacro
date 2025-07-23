@@ -2,18 +2,57 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="rhody">
 
   <xacro:arg name="namespace" default="rhody" />
-
   <xacro:property name="namespace" value="$(arg namespace)" scope="global" />
+  <xacro:property name="deg" value="${pi / 180.0}" />
 
-  <xacro:property name="deg" value="${pi/180}" />
-
+  <!-- Base Link -->
   <link name="${namespace}/base_link">
     <visual>
-      <origin rpy="0.0 0 0" xyz="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://rhody/meshes/rhody.dae"/>
       </geometry>
     </visual>
   </link>
+
+  <!-- DVL Link -->
+  <link name="${namespace}/dvl_link"/>
+  <joint name="${namespace}_base_to_dvl" type="fixed">
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/dvl_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- USBL -->
+  <link name="${namespace}/usbl_link"/>
+  <joint name="${namespace}_base_to_usbl" type="fixed">
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/usbl_link"/>
+    <origin xyz="0.013 0.050 0.385" rpy="0 0 0"/>
+  </joint>
+
+  <!-- FLS -->
+  <link name="${namespace}/fls_link"/>
+  <joint name="${namespace}_base_to_fls" type="fixed">
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/fls_link"/>
+    <origin xyz="0.338 0.050 0.281" rpy="0 ${5.0 * deg} 0"/>
+  </joint>
+
+  <!-- Voyis Stereo: Left Entrance Pupil -->
+  <link name="${namespace}/voyis_left_link"/>
+  <joint name="${namespace}_base_to_voyis_left" type="fixed">
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/voyis_left_link"/>
+    <origin xyz="0.323 -0.035 -0.008" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Voyis Stereo: Right Entrance Pupil -->
+  <link name="${namespace}/voyis_right_link"/>
+  <joint name="${namespace}_base_to_voyis_right" type="fixed">
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/voyis_right_link"/>
+    <origin xyz="0.323 0.135 -0.008" rpy="0 0 0"/>
+  </joint>
 
 </robot>
