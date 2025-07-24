@@ -103,6 +103,7 @@ ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR python/${PROJECT_NAME})
 # Install entry point scripts
 install(PROGRAMS
   python/gps2map.py
+  python/pressure2depth.py
   DESTINATION lib/${PROJECT_NAME})
 
 #############
