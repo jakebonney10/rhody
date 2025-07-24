@@ -13,6 +13,7 @@
   <!-- Runtime Dependencies -->
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>xacro</exec_depend>
+  <exec_depend>pyproj</exec_depend>
 
   <!-- Testing -->
   <test_depend>ament_lint_auto</test_depend>
