@@ -7,4 +7,20 @@
 
   <include file="$(find-pkg-share rhody)/launch/publish_urdf.launch.py"/>
 
+  <!-- GPS2MAP Node -->
+  <node
+    pkg="rhody"
+    exec="gps2map.py"
+    name="gps2utm"
+    output="screen"
+    parameters="$(find-pkg-share rhody)/config/gps2map.yaml"
+    namespace="$(arg vessel_ns)"
+  />
+
+  <!-- EKF Global -->
+  <include file="$(find-pkg-share rhody)/launch/ekf_global.launch.xml">
+    <arg name="vessel_ns" value="$(arg vessel_ns)"/>
+    <arg name="vessel_config" value="$(arg vessel_config)"/>
+  </include>
+
 </launch>

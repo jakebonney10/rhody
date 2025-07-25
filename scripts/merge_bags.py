@@ -13,7 +13,7 @@ input_bags = [
     "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/SUBSONUS/ANPP_LOG_000233_2025_05_28_18_57_05/subsonus_bag/subsonus_bag_0.db3",
     "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/DVL/Data0014_300414/nortek_dvl_bag/nortek_dvl_bag_0.db3"
 ]
-output_bag = "/home/bonnaroo/Desktop/merged_bag"
+output_bag = "/home/bonnaroo/Desktop/merged_bag_20250528_Unknown_005"
 
 def merge_rosbags(input_bag_paths, output_bag_path):
     rclpy.init()

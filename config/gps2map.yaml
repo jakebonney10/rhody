@@ -1,0 +1,21 @@
+gps2utm:
+  ros__parameters:
+    # Required: topic containing NavSatFix from USBL
+    position_topic: /nav/sensors/subsonus_usbl/fix
+
+    # Optional: list of topics to transform (empty = auto-detect)
+    topics: []
+
+    # Output frame for transformed pose
+    projected_frame: usbl_map
+
+    # Use UTM projection (recommended for underwater global localization)
+    map_projection: utm
+
+    # Set this to your operating zone (example = UTM zone 19N for Rhode Island)
+    utm_zone: 19
+
+    # Lat/lon origin used to compute UTM offset and define (0,0,0) in `usbl_map`
+    origin_lat: 43.61214232381858     # Replace with your local datum origin latitude
+    origin_lon: -76.55326599612673   # Replace with your local datum origin longitude
+    origin_z: 0.0            # Often 0, or you can use seafloor depth reference
