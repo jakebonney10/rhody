@@ -1,0 +1,16 @@
+/**:
+  ros__parameters:
+    base_frame: base_link
+    map_frame: map
+    odom_frame: odom
+    odom_topic: odom
+    sensor_timeout: 2.0
+    sensors:
+      ixblue_ins:
+        topics:
+          orientation: sensors/standard/imu
+          position: sensors/standard/navsatfix
+          velocity: sensors/standard/twist
+    sensors_names:
+    - subsonus_usbl
+    use_sim_time: false

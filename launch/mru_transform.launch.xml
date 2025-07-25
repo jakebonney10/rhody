@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+
+  <arg name="vessel_ns"       default="rhody"/>
+  <arg name="vessel_config"   default="rhody"/>
+
+
+  <node pkg="mru_transform" exec="mru_transform_node" name="mru_transform" output="screen" namespace="$(var vessel_ns)/nav">
+    <param from="$(find-pkg-share rhody)/config/mru_transform.yaml"/>
+    <param name="base_frame" value="$(var vessel_ns)/base_link"/>
+  </node>
+  
+
+</launch>
