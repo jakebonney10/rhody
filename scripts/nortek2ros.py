@@ -122,6 +122,18 @@ def main():
         serialization_format='cdr'
     ))
 
+    writer.create_topic(TopicMetadata(
+        name=namespace + '/imu_ahrs',
+        type='sensor_msgs/msg/Imu',
+        serialization_format='cdr'
+    ))
+
+    writer.create_topic(TopicMetadata(
+        name=namespace + '/depth',
+        type='geometry_msgs/msg/PoseWithCovarianceStamped',
+        serialization_format='cdr'
+    ))
+
     # writer.create_topic(TopicMetadata(
     #     name=namespace + '/pose',
     #     type='geometry_msgs/msg/PoseWithCovarianceStamped',
@@ -152,7 +164,7 @@ def main():
 
         writer.write(namespace + '/velocity', serialize_message(msg), ts)
 
-    # ---- IMU → Imu ----
+    # ---- IMU → Imu ---- ang vel and acc in NED, convert to ENU
     for _, row in imu_df.iterrows():
         t, ts = make_ros_time(row['dateTime'])
         msg = Imu()
@@ -166,6 +178,53 @@ def main():
         msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = acc_enu
         msg.orientation_covariance[0] = -1.0  # unknown
         writer.write(namespace + '/imu', serialize_message(msg), ts)
+
+    # ---- IMU AHRS → Imu ---- Convert quaternion from NED to ENU
+    for _, row in ins_df.iterrows():
+        t, ts = make_ros_time(row['dateTime'])
+        msg = Imu()
+        msg.header.stamp = t
+        msg.header.frame_id = frame_id
+
+        # Extract quaternion in NED frame
+        q_ned = [
+            float(row['ahrsDataQuaternionX']),
+            float(row['ahrsDataQuaternionY']),
+            float(row['ahrsDataQuaternionZ']),
+            float(row['ahrsDataQuaternionW'])
+        ]
+
+        # Convert to ENU
+        q_enu = ned_to_enu(quat_ned=q_ned)
+        msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = q_enu
+
+        # Set unknown covariances for angular vel and acc
+        msg.angular_velocity_covariance[0] = -1.0
+        msg.linear_acceleration_covariance[0] = -1.0
+
+        writer.write(namespace + '/imu_ahrs', serialize_message(msg), ts)
+
+    # ---- INS → PoseWithCovarianceStamped DEPTH----
+    for _, row in ins_df.iterrows():
+        t, ts = make_ros_time(row['dateTime'])
+        msg = PoseWithCovarianceStamped()
+        msg.header.stamp = t
+        msg.header.frame_id = frame_id
+
+        # Only set Z = depth (positive down), flip to negative up for ENU
+        msg.pose.pose.position.z = -float(row['depth'])  # ENU Z = -NED Depth
+
+        # Set unknown values for x, y, and orientation
+        msg.pose.covariance = [0.0] * 36
+        msg.pose.covariance[14] = 0.25  # z variance (0.5m std dev as example)
+        msg.pose.covariance[0] = -1.0   # x unknown
+        msg.pose.covariance[7] = -1.0   # y unknown
+        msg.pose.covariance[21] = -1.0  # roll unknown
+        msg.pose.covariance[28] = -1.0  # pitch unknown
+        msg.pose.covariance[35] = -1.0  # yaw unknown
+
+        writer.write(namespace + '/depth', serialize_message(msg), ts)
+
 
     # # ---- INS → PoseWithCovarianceStamped ----
     # for _, row in ins_df.iterrows():
