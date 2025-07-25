@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+
+  <arg name="vessel_ns" default="rhody"/>
+  <arg name="vessel_config" default="rhody"/>
+
+  <node pkg="robot_localization" exec="ekf_node" name="ekf_global" output="screen" namespace="$(var vessel_ns)/nav">
+    <param from="$(find-pkg-share rhody)/config/ekf_global.yaml"/>
+  </node>
+
+</launch>
+
