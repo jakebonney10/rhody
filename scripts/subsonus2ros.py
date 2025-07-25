@@ -15,19 +15,9 @@ from scipy.spatial.transform import Rotation as R
 """
 subsonus2ros.py
 
-This script processes raw data from Subsonus USBL ANPP logs and converts it into ROS 2 bag files for use in robot localization. The Subsonus sensor provides acoustic positioning data in the NED (North-East-Down) coordinate frame, which is transformed into the ENU (East-North-Up) coordinate frame expected by ROS 2.
-
-Key Features:
-- Reads Subsonus USBL ANPP logs from a CSV file (`State.csv` or `RemoteSubsonusState.csv`).
-- Converts NED coordinate frame data to ENU coordinate frame.
-- Creates ROS 2 bag files containing `NavSatFix` and `Imu` messages.
-- Handles data validation and formatting errors gracefully.
-- Supports covariance matrices for position and orientation data.
-
-Dependencies:
-- Python libraries: pandas, numpy, scipy, os, shutil
-- ROS 2 Python libraries: rclpy, rosbag2_py
-- ROS 2 message types: `sensor_msgs.msg.NavSatFix`, `sensor_msgs.msg.Imu`, `builtin_interfaces.msg.Time`
+This script processes raw data from Subsonus USBL ANPP logs and converts it into ROS 2 bag files for use in robot 
+localization. The Subsonus sensor provides acoustic positioning data in the NED (North-East-Down) coordinate frame, 
+which is transformed into the ENU (East-North-Up) coordinate frame expected by ROS 2.
 
 Usage:
 1. Place the raw Subsonus USBL ANPP log file (`State.csv`) in the same directory as the script.
@@ -38,14 +28,11 @@ Coordinate Frame Transformation:
 - The Subsonus sensor uses the NED coordinate frame, while ROS 2 expects ENU.
 - The script uses the `ned_to_enu` function to transform both quaternion orientations and vector data from NED to ENU.
 
-Error Handling:
-- Rows with invalid numeric values are dropped and logged.
-- Covariance formatting errors are caught and logged without interrupting the process.
-
 Output:
 - ROS 2 bag files containing:
     - `NavSatFix` messages for latitude, longitude, altitude, and position covariance.
     - `Imu` messages for orientation, angular velocity, and covariance matrices.
+    - `Odometry` messages for position, orientation, and velocity in the ENU frame.
 
 Notes:
 - Ensure ROS 2 is installed and configured properly before running the script.
@@ -266,30 +253,30 @@ def main():
 
         writer.write(namespace + '/odom', serialize_message(odom), timestamp)
 
-    ''' # NOTE: This section is commented out remote raw sensors data doesnt have timestamps
-    # ---- Depth from Remote Raw Sensors data (pressure depth)
-    for _, row in df_raw.iterrows():
-        # Generate timestamp (use best estimate or just Unix + Micro if no Human Timestamp)
-        ros_time, timestamp = make_ros_time(row["Unix Time"], row["Microseconds"])
+    # NOTE: This section is commented out remote raw sensors data doesnt have timestamps
+    # # ---- Depth from Remote Raw Sensors data (pressure depth)
+    # for _, row in df_raw.iterrows():
+    #     # Generate timestamp (use best estimate or just Unix + Micro if no Human Timestamp)
+    #     ros_time, timestamp = make_ros_time(row["Unix Time"], row["Microseconds"])
 
-        msg = PoseWithCovarianceStamped()
-        msg.header.stamp = ros_time
-        msg.header.frame_id = frame_id
+    #     msg = PoseWithCovarianceStamped()
+    #     msg.header.stamp = ros_time
+    #     msg.header.frame_id = frame_id
 
-        # Convert NED depth to ENU Z: ENU.z = -NED.depth
-        msg.pose.pose.position.z = -float(row["Pressure Depth"])
+    #     # Convert NED depth to ENU Z: ENU.z = -NED.depth
+    #     msg.pose.pose.position.z = -float(row["Pressure Depth"])
 
-        # Set unknown values for x/y/orientation, and conservative Z variance
-        msg.pose.covariance = [0.0] * 36
-        msg.pose.covariance[14] = 0.25  # Variance of 0.5 m
-        msg.pose.covariance[0] = -1.0   # x unknown
-        msg.pose.covariance[7] = -1.0   # y unknown
-        msg.pose.covariance[21] = -1.0  # roll unknown
-        msg.pose.covariance[28] = -1.0  # pitch unknown
-        msg.pose.covariance[35] = -1.0  # yaw unknown
+    #     # Set unknown values for x/y/orientation, and conservative Z variance
+    #     msg.pose.covariance = [0.0] * 36
+    #     msg.pose.covariance[14] = 0.25  # Variance of 0.5 m
+    #     msg.pose.covariance[0] = -1.0   # x unknown
+    #     msg.pose.covariance[7] = -1.0   # y unknown
+    #     msg.pose.covariance[21] = -1.0  # roll unknown
+    #     msg.pose.covariance[28] = -1.0  # pitch unknown
+    #     msg.pose.covariance[35] = -1.0  # yaw unknown
 
-        writer.write(namespace + '/depth', serialize_message(msg), timestamp)
-    '''
+    #     writer.write(namespace + '/depth', serialize_message(msg), timestamp)
+
 
     print(f"✅ ROS 2 bag created in: {output_dir}")
     rclpy.shutdown()

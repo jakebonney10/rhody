@@ -19,13 +19,6 @@ and converts them into ROS 2 bag files for use with robot localization systems.
 The Nortek sensor data, originally in the NED (North-East-Down) coordinate frame, 
 is transformed into the ENU (East-North-Up) frame as required by ROS 2 conventions.
 
-Key Features:
-- Converts Bottom Track data to TwistWithCovarianceStamped messages.
-- Converts IMU data to Imu messages.
-- (Optional) Converts INS data to PoseWithCovarianceStamped messages.
-- Handles invalid velocity values and applies conservative covariance estimates.
-- Deletes any existing output directory before creating a new ROS 2 bag.
-
 Usage:
 - Place the raw Nortek CSV files ("Bottom Track.csv", "IMU.csv", "INS.csv") in the script's directory.
 - Run the script to generate a ROS 2 bag file in the specified output directory.
@@ -33,8 +26,12 @@ Usage:
 Coordinate Frame Conversion:
 - NED (North-East-Down) → ENU (East-North-Up) for both vectors and quaternions.
 
-Dependencies:
-- pandas, numpy, rclpy, rosbag2_py, scipy.spatial.transform, geometry_msgs, sensor_msgs
+Output:
+- ROS 2 bag files containing:
+    - `TwistWithCovarianceStamped` messages for velocity data.
+    - `Imu` messages for orientation and angular velocity data.
+    - `PoseWithCovarianceStamped` messages for depth data.
+    - (Optional) `PoseWithCovarianceStamped` messages for INS data.
 
 Note:
 - INS data conversion is commented out but can be enabled if needed.
