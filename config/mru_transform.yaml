@@ -6,11 +6,11 @@
     odom_topic: odom
     sensor_timeout: 2.0
     sensors:
-      ixblue_ins:
+      subsonus_usbl:
         topics:
-          orientation: sensors/standard/imu
-          position: sensors/standard/navsatfix
-          velocity: sensors/standard/twist
+          orientation: sensors/subsonus_usbl/ins/imu
+          position: sensors/subsonus_usbl/ins/fix
+          velocity: sensors/subsonus_usbl/ins/twist
     sensors_names:
     - subsonus_usbl
     use_sim_time: false
