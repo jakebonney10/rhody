@@ -125,17 +125,17 @@ def main():
     ))
 
     writer.create_topic(TopicMetadata(
-        name='/ins/fix',
+        name=namespace + '/ins/fix',
         type='sensor_msgs/msg/NavSatFix',
         serialization_format='cdr'
     ))
     writer.create_topic(TopicMetadata(
-        name='/ins/imu',
+        name=namespace + '/ins/imu',
         type='sensor_msgs/msg/Imu',
         serialization_format='cdr'
     ))
     writer.create_topic(TopicMetadata(
-        name='/ins/velocity',
+        name=namespace + '/ins/velocity',
         type='geometry_msgs/msg/TwistWithCovarianceStamped',
         serialization_format='cdr'
     ))
@@ -192,7 +192,7 @@ def main():
             print(f"⚠️ NavSatFix covariance formatting error:\n{row}\n{e}")
             continue
 
-        writer.write('/ins/fix', serialize_message(fix), timestamp)
+        writer.write(namespace + '/ins/fix', serialize_message(fix), timestamp)
 
         # ---- IMU
         imu = Imu()
@@ -218,7 +218,7 @@ def main():
         imu.angular_velocity_covariance = [0.01] * 9
         imu.linear_acceleration_covariance = [-1.0] * 9  # unknown
 
-        writer.write('/ins/imu', serialize_message(imu), timestamp)
+        writer.write(namespace + '/ins/imu', serialize_message(imu), timestamp)
 
         # ---- Velocity (TwistWithCovarianceStamped)
         twist = TwistWithCovarianceStamped()
@@ -233,7 +233,7 @@ def main():
         twist.twist.twist.angular.x, twist.twist.twist.angular.y, twist.twist.twist.angular.z = ang_vel_enu
         twist.twist.covariance = [0.05] * 36  # Conservative guess
 
-        writer.write('/ins/velocity', serialize_message(twist), timestamp)
+        writer.write(namespace + '/ins/velocity', serialize_message(twist), timestamp)
 
 
     print(f"✅ ROS 2 bag created in: {output_dir}")
