@@ -7,7 +7,7 @@ from rclpy.serialization import serialize_message
 from builtin_interfaces.msg import Time
 from sensor_msgs.msg import Imu, NavSatFix, NavSatStatus
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
 from rosbag2_py import SequentialWriter, StorageOptions, ConverterOptions
 from rosbag2_py._storage import TopicMetadata
 from scipy.spatial.transform import Rotation as R
@@ -42,7 +42,7 @@ Notes:
 
 # NOTE: Subsonus Sensor Coordinate Frame is NED, ROS2 robot localization expects ENU [https://docs.advancednavigation.com/subsonus/SensorCoordinate.htm]
 frame_id = "usbl_link"
-namespace = "nav/sensors/subsonus_usbl"
+namespace = "rhody/nav/sensors/subsonus_usbl"
 output_dir = "subsonus_bag"
 fn_state = "RemoteSubsonusState_2.csv"
 fn_track = "RemoteTrack_2.csv"
@@ -125,20 +125,18 @@ def main():
     ))
 
     writer.create_topic(TopicMetadata(
-        name=namespace + '/imu',
+        name='/ins/fix',
+        type='sensor_msgs/msg/NavSatFix',
+        serialization_format='cdr'
+    ))
+    writer.create_topic(TopicMetadata(
+        name='/ins/imu',
         type='sensor_msgs/msg/Imu',
         serialization_format='cdr'
     ))
-
     writer.create_topic(TopicMetadata(
-        name=namespace + '/depth',
-        type='geometry_msgs/msg/PoseWithCovarianceStamped',
-        serialization_format='cdr'
-    ))
-
-    writer.create_topic(TopicMetadata(
-        name=namespace + '/odom',
-        type='nav_msgs/msg/Odometry',
+        name='/ins/velocity',
+        type='geometry_msgs/msg/TwistWithCovarianceStamped',
         serialization_format='cdr'
     ))
 
@@ -169,11 +167,34 @@ def main():
 
         writer.write(namespace + '/fix', serialize_message(fix), timestamp)
 
-    # ---- IMU and Odometry from Remote State data (orientation and angular velocity)
+    # ---- NavSatFix, IMU, and Velocity from Remote Subsonus State INS data
     for _, row in df_state.iterrows():
         ros_time, timestamp = make_ros_time(row["Unix Time"], row["Microseconds"])
 
-        # IMU
+        # ---- NavSatFix
+        fix = NavSatFix()
+        fix.header.stamp = ros_time
+        fix.header.frame_id = frame_id
+        fix.status.status = NavSatStatus.STATUS_FIX
+        fix.status.service = 0
+        fix.latitude = row["Latitude"]
+        fix.longitude = row["Longitude"]
+        fix.altitude = row["Height"]
+
+        try:
+            fix.position_covariance = [
+                float(row["Latitude Error"])**2, 0.0, 0.0,
+                0.0, float(row["Longitude Error"])**2, 0.0,
+                0.0, 0.0, float(row["Height Error"])**2
+            ]
+            fix.position_covariance_type = NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
+        except Exception as e:
+            print(f"⚠️ NavSatFix covariance formatting error:\n{row}\n{e}")
+            continue
+
+        writer.write('/ins/fix', serialize_message(fix), timestamp)
+
+        # ---- IMU
         imu = Imu()
         imu.header.stamp = ros_time
         imu.header.frame_id = frame_id
@@ -197,85 +218,22 @@ def main():
         imu.angular_velocity_covariance = [0.01] * 9
         imu.linear_acceleration_covariance = [-1.0] * 9  # unknown
 
-        writer.write(namespace + '/imu', serialize_message(imu), timestamp)
+        writer.write('/ins/imu', serialize_message(imu), timestamp)
 
-        # Odometry
-        odom = Odometry()
-        odom.header.stamp = ros_time
-        odom.header.frame_id = "odom_usbl"
-        odom.child_frame_id = frame_id  # or your vehicle's moving frame
+        # ---- Velocity (TwistWithCovarianceStamped)
+        twist = TwistWithCovarianceStamped()
+        twist.header.stamp = ros_time
+        twist.header.frame_id = frame_id
 
-        # Position (lat/lon/alt → keep raw or transform to map if needed later)
-        odom.pose.pose.position.x = row["Longitude"]
-        odom.pose.pose.position.y = row["Latitude"]
-        odom.pose.pose.position.z = row["Height"]
+        lin_vel_ned = [row["Velocity North"], row["Velocity East"], row["Velocity Down"]]
+        lin_vel_enu = ned_to_enu(vec_ned=lin_vel_ned)
+        ang_vel_enu = ned_to_enu(vec_ned=angvel_ned)
 
-        # Orientation from roll/pitch/heading
-        qx, qy, qz, qw = euler_to_quaternion(row["Roll"], row["Pitch"], row["Heading"])
-        q_enu = ned_to_enu(quat_ned=(qx, qy, qz, qw))
-        odom.pose.pose.orientation.x = q_enu[0]
-        odom.pose.pose.orientation.y = q_enu[1]
-        odom.pose.pose.orientation.z = q_enu[2]
-        odom.pose.pose.orientation.w = q_enu[3]
+        twist.twist.twist.linear.x, twist.twist.twist.linear.y, twist.twist.twist.linear.z = lin_vel_enu
+        twist.twist.twist.angular.x, twist.twist.twist.angular.y, twist.twist.twist.angular.z = ang_vel_enu
+        twist.twist.covariance = [0.05] * 36  # Conservative guess
 
-        # Velocities (angular)
-        vel_ang_ned = [row["Angular Velocity X"], row["Angular Velocity Y"], row["Angular Velocity Z"]]
-        vel_ang_enu = ned_to_enu(vec_ned=vel_ang_ned)
-
-        # ✅ Linear velocity from Velocity N/E/D
-        vel_lin_ned = [row["Velocity North"], row["Velocity East"], row["Velocity Down"]]
-        vel_lin_enu = ned_to_enu(vec_ned=vel_lin_ned)
-
-        odom.twist.twist.angular.x = vel_ang_enu[0]
-        odom.twist.twist.angular.y = vel_ang_enu[1]
-        odom.twist.twist.angular.z = vel_ang_enu[2]
-
-        odom.twist.twist.linear.x = vel_lin_enu[0]
-        odom.twist.twist.linear.y = vel_lin_enu[1]
-        odom.twist.twist.linear.z = vel_lin_enu[2]
-
-        # Covariance matrices
-        try:
-            pose_cov = [0.0] * 36
-            pose_cov[0] = float(row["Longitude Error"]) ** 2     # x
-            pose_cov[7] = float(row["Latitude Error"]) ** 2      # y
-            pose_cov[14] = float(row["Height Error"]) ** 2       # z
-            pose_cov[21] = float(row["Roll Error"]) ** 2         # roll
-            pose_cov[28] = float(row["Pitch Error"]) ** 2        # pitch
-            pose_cov[35] = float(row["Heading Error"]) ** 2      # yaw
-            odom.pose.covariance = pose_cov
-        except Exception as e:
-            print(f"⚠️ Odometry pose covariance error:\n{row}\n{e}")
-            odom.pose.covariance = [0.5] * 36  # fallback
-
-        # Covariances — conservative values (update if you know better)
-        odom.twist.covariance = [0.1] * 36
-
-        writer.write(namespace + '/odom', serialize_message(odom), timestamp)
-
-    # NOTE: This section is commented out remote raw sensors data doesnt have timestamps
-    # # ---- Depth from Remote Raw Sensors data (pressure depth)
-    # for _, row in df_raw.iterrows():
-    #     # Generate timestamp (use best estimate or just Unix + Micro if no Human Timestamp)
-    #     ros_time, timestamp = make_ros_time(row["Unix Time"], row["Microseconds"])
-
-    #     msg = PoseWithCovarianceStamped()
-    #     msg.header.stamp = ros_time
-    #     msg.header.frame_id = frame_id
-
-    #     # Convert NED depth to ENU Z: ENU.z = -NED.depth
-    #     msg.pose.pose.position.z = -float(row["Pressure Depth"])
-
-    #     # Set unknown values for x/y/orientation, and conservative Z variance
-    #     msg.pose.covariance = [0.0] * 36
-    #     msg.pose.covariance[14] = 0.25  # Variance of 0.5 m
-    #     msg.pose.covariance[0] = -1.0   # x unknown
-    #     msg.pose.covariance[7] = -1.0   # y unknown
-    #     msg.pose.covariance[21] = -1.0  # roll unknown
-    #     msg.pose.covariance[28] = -1.0  # pitch unknown
-    #     msg.pose.covariance[35] = -1.0  # yaw unknown
-
-    #     writer.write(namespace + '/depth', serialize_message(msg), timestamp)
+        writer.write('/ins/velocity', serialize_message(twist), timestamp)
 
 
     print(f"✅ ROS 2 bag created in: {output_dir}")

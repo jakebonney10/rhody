@@ -40,7 +40,7 @@ Note:
 
 # NOTE: Nortek Sensor Coordinate Frame is NED, ROS2 robot localization expects ENU [https://support.nortekgroup.com/hc/en-us/article_attachments/17223428270620]
 frame_id = "dvl_link"
-namespace = "nav/sensors/nortek_dvl"
+namespace = "rhody/nav/sensors/nortek_dvl"
 output_dir = "nortek_dvl_bag"
 
 # NOTE: Conservative estimates for covariances of Bottom Track based off of manual (squared std dev)

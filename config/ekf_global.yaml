@@ -7,12 +7,13 @@ ekf_filter_node:
         transform_time_offset: 0.0
         transform_timeout: 0.0
         print_diagnostics: true
-        debug: false
+        debug: true
+        debug_out_file: /debug/ekf_global_debug.txt
         publish_tf: true
-        map_frame: map
+        map_frame: utm_local  
         odom_frame: odom
         base_link_frame: base_link
-        world_frame: map  # Because USBL provides global absolute pose
+        world_frame: utm_local  
 
         # IMU0: DVL/IMU with full orientation (roll, pitch, yaw)
         imu0: /nav/sensors/nortek_dvl/imu_ahrs
