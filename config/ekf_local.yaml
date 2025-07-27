@@ -1,4 +1,4 @@
-### ekf global config file ###
+### ekf local config file ###
 /**:
     ros__parameters:
         frequency: 60.0

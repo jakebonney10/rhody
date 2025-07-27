@@ -26,7 +26,7 @@ class TransformPoseNode(Node):
         self.tf_broadcaster = TransformBroadcaster(self)
         self.tf_static_broadcaster = StaticTransformBroadcaster(self)
 
-        self.topics = self.declare_parameter('topics', []).value
+        self.topics = self.declare_parameter('topics', rclpy.Parameter.Type.STRING_ARRAY).value
         self.position_topic = self.declare_parameter('position_topic', '').value
         self.projected_frame = self.declare_parameter('projected_frame', 'utm_local').value
         self.map_projection = self.declare_parameter('map_projection', 'utm').value  # 'utm' or 'ecef'
@@ -92,6 +92,15 @@ class TransformPoseNode(Node):
             self.subscribers_['pos_sub'] = self.create_subscription(
                 NavSatFix, self.position_topic, self.position_navsat_callback, self.sensor_qos)
 
+        resolved = self.resolve_topic_name(self.position_topic)
+        if resolved not in self.publishers_:
+            self.get_logger().info(f"Manually creating publisher for position_topic: /utm{resolved}")
+            self.publishers_[resolved] = self.create_publisher(
+                PoseWithCovarianceStamped,
+                f"/utm{resolved}",
+                10
+            )
+
         topic_list = self.get_topic_names_and_types()
         for topic_name, types in topic_list:
             msg_type = types[0]
@@ -105,22 +114,25 @@ class TransformPoseNode(Node):
             if self.topics and topic_name not in self.topics:
                 continue
 
+            resolved = self.resolve_topic_name(topic_name)
+
             if msg_type == 'sensor_msgs/msg/NavSatFix':
                 self.get_logger().info(f"Subscribing to NavSatFix topic: {topic_name}")
                 self.subscribers_[topic_name] = self.create_subscription(
                     NavSatFix, topic_name, lambda msg, t=topic_name: self.gps_callback(msg, t), self.sensor_qos)
-                self.publishers_[topic_name] = self.create_publisher(PoseWithCovarianceStamped, f"/utm{topic_name}", 10)
+                self.publishers_[resolved] = self.create_publisher(PoseWithCovarianceStamped, f"/utm{resolved}", 10)
                 # self.proj_publishers[topic_name] = self.create_publisher(ProjectionInfo, f"/utm{topic_name}/proj", 10)
 
             elif msg_type == 'sensor_msgs/msg/Imu':
                 self.get_logger().info(f"Subscribing to IMU topic: {topic_name}")
                 self.subscribers_[topic_name] = self.create_subscription(
                     Imu, topic_name, lambda msg, t=topic_name: self.imu_callback(msg, t), self.sensor_qos)
-                self.imu_publishers[topic_name] = self.create_publisher(Imu, f"/utm{topic_name}", 10)
+                self.imu_publishers_[resolved] = self.create_publisher(Imu, f"/utm{resolved}", 10)
                 # self.proj_publishers[topic_name] = self.create_publisher(ProjectionInfo, f"/utm{topic_name}/proj", 10)
 
     def position_navsat_callback(self, msg):
         self.last_gps = msg
+        self.gps_callback(msg, self.position_topic)
 
     def compute_convergence_angle(self, lon, lat):
         utm_center = self.utm_zone * 6 - 180 - 3
@@ -157,7 +169,12 @@ class TransformPoseNode(Node):
         msg.orientation.y = new_quat[1]
         msg.orientation.z = new_quat[2]
         msg.orientation.w = new_quat[3]
-        self.imu_publishers[topic].publish(msg)
+        resolved = self.resolve_topic_name(topic)
+        if resolved in self.imu_publishers_:
+            self.imu_publishers_[resolved].publish(msg)
+        else:
+            self.get_logger().warn(f"No IMU publisher for topic: {resolved}")
+
 
     def gps_callback(self, msg, topic):
         try:
@@ -189,7 +206,16 @@ class TransformPoseNode(Node):
         pose_msg.pose.covariance[7] = msg.position_covariance[4]
         pose_msg.pose.covariance[14] = msg.position_covariance[8]
 
-        self.publishers_[topic].publish(pose_msg)
+        resolved = self.resolve_topic_name(topic)
+        if resolved in self.publishers_:
+            self.publishers_[resolved].publish(pose_msg)
+        else:
+            self.get_logger().warn(f"No publisher for topic: {resolved}")
+
+    def resolve_topic_name(self, topic):
+        if topic.startswith('/'):
+            return topic
+        return f"{self.get_namespace()}/{topic}".replace('//', '/')
 
 
 def main(args=None):

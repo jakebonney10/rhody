@@ -17,6 +17,8 @@
     <arg name="vessel_ns" value="$(var vessel_ns)"/>
     <arg name="vessel_config" value="$(var vessel_config)"/>
   </include>
+
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="utm_to_odom" args="0 0 0 0 0 0 utm_local odom" />
   
 
 </launch>
