@@ -5,8 +5,14 @@
   <arg name="vessel_ns" default="rhody"/>
   <arg name="vessel_config" default="rhody"/>
 
-  <node pkg="robot_localization" exec="ekf_node" name="ekf_global" output="screen" namespace="$(var vessel_ns)/nav">
+  <!-- EKF Global -->
+  <!-- <node pkg="robot_localization" exec="ekf_node" name="ekf_global" output="screen" namespace="$(var vessel_ns)/nav">
     <param from="$(find-pkg-share rhody)/config/ekf_global.yaml"/>
+  </node> -->
+
+  <!-- EKF Local -->
+  <node pkg="robot_localization" exec="ekf_node" name="ekf_local" output="screen" namespace="$(var vessel_ns)/nav">
+    <param from="$(find-pkg-share rhody)/config/ekf_local.yaml"/>
   </node>
 
 </launch>

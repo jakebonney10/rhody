@@ -9,7 +9,7 @@
         print_diagnostics: true
         debug: true
         debug_out_file: /tmp/ekf_local_debug.txt
-        publish_tf: false
+        publish_tf: true
 
         map_frame: map  
         odom_frame: odom
@@ -50,7 +50,7 @@
         twist0_queue_size: 10
 
         # Pose0: Depth (Z only)
-        pose0: sensors/nortek_dvl/pose
+        pose0: sensors/nortek_dvl/depth
         pose0_config: [false, false, true,
                     false, false, false,
                     false, false, false,
