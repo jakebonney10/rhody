@@ -54,6 +54,32 @@ invalid_vel = -32.76
 # NOTE: Gyro X, Y, Z values are reported in radians per second (°/s) and ROS2 REP 103 recommends radians per second (rad/s)
 deg2rad = np.pi / 180.0
 
+# ---- Covariance estimates based on Nortek Nucleus specs ----
+ahrs_roll_pitch_std = np.deg2rad(0.3)      # ~0.3 deg → radians
+ahrs_yaw_std       = np.deg2rad(1.0)      # ~1 deg → radians
+
+imu_ang_vel_std    = 0.01                 # rad/s
+imu_lin_acc_std    = 0.1                  # m/s^2
+
+# Precompute covariance matrices
+ahrs_orientation_cov = [
+    ahrs_roll_pitch_std**2, 0.0, 0.0,
+    0.0, ahrs_roll_pitch_std**2, 0.0,
+    0.0, 0.0, ahrs_yaw_std**2
+]
+
+imu_ang_vel_cov = [
+    imu_ang_vel_std**2, 0.0, 0.0,
+    0.0, imu_ang_vel_std**2, 0.0,
+    0.0, 0.0, imu_ang_vel_std**2
+]
+
+imu_lin_acc_cov = [
+    imu_lin_acc_std**2, 0.0, 0.0,
+    0.0, imu_lin_acc_std**2, 0.0,
+    0.0, 0.0, imu_lin_acc_std**2
+]
+
 def make_ros_time(iso_time):
     dt = pd.to_datetime(iso_time)
     sec = int(dt.timestamp())
@@ -174,6 +200,8 @@ def main():
         acc_enu = ned_to_enu(vec_ned=acc_ned)
         msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = acc_enu
         msg.orientation_covariance[0] = -1.0  # unknown
+        msg.angular_velocity_covariance = imu_ang_vel_cov
+        msg.linear_acceleration_covariance = imu_lin_acc_cov
         writer.write(namespace + '/imu', serialize_message(msg), ts)
 
     # ---- IMU AHRS → Imu ---- Convert quaternion from NED to ENU
@@ -196,6 +224,7 @@ def main():
         msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = q_enu
 
         # Set unknown covariances for angular vel and acc
+        msg.orientation_covariance = ahrs_orientation_cov
         msg.angular_velocity_covariance[0] = -1.0
         msg.linear_acceleration_covariance[0] = -1.0
 
