@@ -1,6 +1,6 @@
 /**:
   ros__parameters:
-    base_frame: base_link
+    base_frame: rhody/base_link
     map_frame: map
     odom_frame: odom
     odom_topic: odom
@@ -10,7 +10,7 @@
         topics:
           orientation: sensors/subsonus_usbl/ins/imu
           position: sensors/subsonus_usbl/ins/fix
-          velocity: sensors/subsonus_usbl/ins/twist
+          velocity: sensors/subsonus_usbl/ins/velocity
     sensors_names:
     - subsonus_usbl
-    use_sim_time: false
+    use_sim_time: true
