@@ -2,7 +2,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
+from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.actions import Node
 
@@ -20,13 +20,13 @@ def generate_launch_description():
         description='Path to the robot xacro file'
     )
 
-    # Corrected xacro command — DO NOT put 'xacro ' in one string
+    # Robot description
     robot_description = Command([
         'xacro', ' ',
         LaunchConfiguration('xacro_file')
     ])
 
-    # Node to publish the robot description
+    # Robot state publisher
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -38,7 +38,17 @@ def generate_launch_description():
         }]
     )
 
+    # Static transform publisher for EKF bootstrap (odom → rhody/base_link)
+    static_tf_bootstrap = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='odom_to_base_link_bootstrap',
+        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'rhody/base_link'],
+        output='screen'
+    )
+
     return LaunchDescription([
         declare_xacro_file_path,
-        robot_state_publisher_node
+        robot_state_publisher_node,
+        static_tf_bootstrap
     ])

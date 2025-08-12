@@ -243,11 +243,16 @@ def main():
         # Set unknown values for x, y, and orientation
         msg.pose.covariance = [0.0] * 36
         msg.pose.covariance[14] = 0.25  # z variance (0.5m std dev as example)
-        msg.pose.covariance[0] = -1.0   # x unknown
-        msg.pose.covariance[7] = -1.0   # y unknown
-        msg.pose.covariance[21] = -1.0  # roll unknown
-        msg.pose.covariance[28] = -1.0  # pitch unknown
-        msg.pose.covariance[35] = -1.0  # yaw unknown
+        msg.pose.covariance[0] = 1e6    # x unused
+        msg.pose.covariance[7] = 1e6    # y unused
+        msg.pose.covariance[21] = 1e6   # roll unused
+        msg.pose.covariance[28] = 1e6   # pitch unused
+        msg.pose.covariance[35] = 1e6   # yaw unused
+        # msg.pose.covariance[0] = -1.0   # x unknown
+        # msg.pose.covariance[7] = -1.0   # y unknown
+        # msg.pose.covariance[21] = -1.0  # roll unknown
+        # msg.pose.covariance[28] = -1.0  # pitch unknown
+        # msg.pose.covariance[35] = -1.0  # yaw unknown
 
         writer.write(namespace + '/depth', serialize_message(msg), ts)
 
