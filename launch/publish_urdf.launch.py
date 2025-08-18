@@ -38,17 +38,17 @@ def generate_launch_description():
         }]
     )
 
-    # Static transform publisher for EKF bootstrap (odom → rhody/base_link)
-    static_tf_bootstrap = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='odom_to_base_link_bootstrap',
-        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'rhody/base_link'],
-        output='screen'
-    )
+    # # Static transform publisher for EKF bootstrap (odom → rhody/base_link)
+    # static_tf_bootstrap = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='odom_to_base_link_bootstrap',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'odom', 'rhody/base_link'],
+    #     output='screen'
+    # )
 
     return LaunchDescription([
         declare_xacro_file_path,
         robot_state_publisher_node,
-        static_tf_bootstrap
+        # static_tf_bootstrap
     ])
