@@ -39,7 +39,7 @@ Note:
 """
 
 # NOTE: Nortek Sensor Coordinate Frame is NED, ROS2 robot localization expects ENU [https://support.nortekgroup.com/hc/en-us/article_attachments/17223428270620]
-frame_id = "rhody/dvl_link"
+frame_id = "dvl_link"
 namespace = "rhody/nav/sensors/nortek_dvl"
 output_dir = "nortek_dvl_bag"
 
@@ -175,14 +175,14 @@ def main():
         vel_enu = ned_to_enu(vec_ned=vel_ned)
         msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z = vel_enu
 
-        # Add reasonable covariances (example: tight trust in x/y, less in z, don't trust angular)
+        # Add reasonable covariances (example: tight trust in x/y, less in z, don't trust angular so 1e6)
         msg.twist.covariance = [
             vx_std**2, 0.0,      0.0,      0.0, 0.0, 0.0,
             0.0,      vy_std**2, 0.0,      0.0, 0.0, 0.0,
             0.0,      0.0,      vz_std**2,  0.0, 0.0, 0.0,
-            0.0,      0.0,      0.0,     -1.0, 0.0, 0.0,
-            0.0,      0.0,      0.0,      0.0, -1.0, 0.0,
-            0.0,      0.0,      0.0,      0.0, 0.0, -1.0
+            0.0,      0.0,      0.0,      1e6, 0.0, 0.0,
+            0.0,      0.0,      0.0,      1e6, -1.0, 0.0,
+            0.0,      0.0,      0.0,      1e6, 0.0, -1.0
         ]
 
         writer.write(namespace + '/velocity', serialize_message(msg), ts)

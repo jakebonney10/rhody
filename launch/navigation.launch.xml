@@ -12,19 +12,16 @@
     <param from="$(find-pkg-share rhody)/config/gps2map.yaml"/>
   </node>
 
-  <!-- EKF Global -->
+  <!-- EKF -->
   <include file="$(find-pkg-share rhody)/launch/ekf.launch.xml">
     <arg name="vessel_ns" value="$(var vessel_ns)"/>
     <arg name="vessel_config" value="$(var vessel_config)"/>
   </include>
 
-  <!-- EKF Local -->
-  <!-- <include file="$(find-pkg-share rhody)/launch/ekf.launch.xml">
-    <arg name="vessel_ns" value="$(var vessel_ns)"/>
-    <arg name="vessel_config" value="$(var vessel_config)"/>
-  </include> -->
-
   <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="utm_to_odom" args="0 0 0 0 0 0 utm_local odom" /> -->
+  <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="utm_to_map" args="0 0 0 0 0 0 map odom" /> -->
+  <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="static_tf_map" args="1 0 0 0 0 0 utm_local map" /> -->
+
   
 
 </launch>

@@ -34,9 +34,20 @@ def generate_launch_description():
         output='screen',
         namespace='rhody',
         parameters=[{
-            'robot_description': ParameterValue(robot_description, value_type=str)
+            'robot_description': ParameterValue(robot_description, value_type=str),
+            'use_sim_time': True
         }]
     )
+
+    # NavSat transform node
+    # navsat_transform_node = Node(
+    #     package='robot_localization',
+    #     executable='navsat_transform_node',
+    #     name='navsat_transform_node',
+    #     output='screen',
+    #     namespace='rhody',
+    #     parameters=[os.path.join(get_package_share_directory("rhody"), 'config', 'navsat_transform.yaml')],
+    # )
 
     # # Static transform publisher for EKF bootstrap (odom → rhody/base_link)
     # static_tf_bootstrap = Node(
@@ -50,5 +61,6 @@ def generate_launch_description():
     return LaunchDescription([
         declare_xacro_file_path,
         robot_state_publisher_node,
+        # navsat_transform_node,
         # static_tf_bootstrap
     ])

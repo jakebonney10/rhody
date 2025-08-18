@@ -41,7 +41,7 @@ Notes:
 """
 
 # NOTE: Subsonus Sensor Coordinate Frame is NED, ROS2 robot localization expects ENU [https://docs.advancednavigation.com/subsonus/SensorCoordinate.htm]
-frame_id = "rhody/usbl_link"
+frame_id = "usbl_link"
 namespace = "rhody/nav/sensors/subsonus_usbl"
 output_dir = "subsonus_bag"
 fn_state = "RemoteSubsonusState_2.csv"

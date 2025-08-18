@@ -12,23 +12,26 @@
         publish_tf: true
         use_sim_time: true
         reset_on_time_jump: true
+        smooth_lagged_data: true
+        history_length: 5.0
 
         map_frame: map  
         odom_frame: odom
-        base_link_frame: rhody/base_link
+        base_link_frame: base_link
         world_frame: odom  
 
-        # # IMU0: DVL/IMU with full orientation (roll, pitch, yaw) -- from nortek dvl
-        # imu0: sensors/nortek_dvl/imu_ahrs
-        # imu0_config: [false, false, false,
-        #             true,  true,  true,
-        #             false, false, false,
-        #             false, false, false,
-        #             false, false, false]
-        # imu0_remove_gravitational_acceleration: false
-        # imu0_queue_size: 10
-        # imu0_relative: false
-        # imu0_differential: false
+        # IMU0: DVL/IMU with full orientation (roll, pitch, yaw) -- from nortek dvl
+        imu0: sensors/nortek_dvl/imu_ahrs
+        imu0_config: [false, false, false,
+                    true,  true,  true,
+                    false, false, false,
+                    false, false, false,
+                    false, false, false]
+        imu0_remove_gravitational_acceleration: false
+        imu0_queue_size: 10
+        imu0_relative: false
+        imu0_differential: false
+        imu0_rejection_threshold: 5.0
 
         # IMU1: angular velocity + linear acceleration -- from nortek dvl
         # imu1: sensors/nortek_dvl/imu
@@ -41,15 +44,17 @@
         # imu1_queue_size: 10
         # imu1_relative: false
         # imu1_differential: false
+        # imu1_rejection_threshold: 5.0
 
-        # # Twist0: DVL velocity x/y/z -- from nortek dvl
-        # twist0: sensors/nortek_dvl/velocity
-        # twist0_config: [false, false, false,
-        #                 false, false, false,
-        #                 true,  true,  true,
-        #                 false, false, false,
-        #                 false, false, false]
-        # twist0_queue_size: 10
+        # Twist0: DVL velocity x/y/z -- from nortek dvl
+        twist0: sensors/nortek_dvl/velocity
+        twist0_config: [false, false, false,
+                        false, false, false,
+                        true,  true,  true,
+                        false, false, false,
+                        false, false, false]
+        twist0_queue_size: 10
+        twist0_rejection_threshold: 5.0
 
         # Pose0: Depth (Z only) -- from nortek dvl
         pose0: sensors/nortek_dvl/depth
@@ -94,15 +99,9 @@
         # question. Users should take care not to use large values for variables that will not be measured directly. The values
         # are ordered as x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. Defaults to the diagonal values below
         # if unspecified. In this example, we specify only the diagonal of the matrix.
-        # initial_estimate_covariance: [1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9]
-        initial_estimate_covariance: [1.0, 1.0, 0.01, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+        #initial_estimate_covariance: [1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9]
+        initial_estimate_covariance: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-
-        # <rosparam param="initial_state">[5.0,  4.0,  3.0,
-        #                          0.0,  0.0,  1.57,
-        #                          0.1,  0.2,  0.3,
-        #                          0.0,  0.0,  0.0,
-        #                          0.0,  0.0,  0.0]</rosparam>
         initial_state: [0.0, 0.0, 0.0,
                         0.0, 0.0, 0.0,
                         0.0, 0.0, 0.0,
