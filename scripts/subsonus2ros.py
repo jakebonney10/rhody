@@ -67,17 +67,21 @@ def euler_to_quaternion(roll, pitch, yaw):
 
 def ned_to_enu(quat_ned=None, vec_ned=None):
     results = []
+
     if quat_ned is not None:
         q_ned = R.from_quat(quat_ned)
-        ned_to_enu_rot = R.from_euler('x', np.pi) * R.from_euler('z', np.pi)
+        # ✅ Correct NED->ENU rotation: Rx(pi) then Rz(-pi/2)
+        ned_to_enu_rot = R.from_euler('x', np.pi) * R.from_euler('z', -np.pi/2)
         q_enu = (ned_to_enu_rot * q_ned).as_quat()
+
+        q_enu = q_enu / np.linalg.norm(q_enu)        # normalize
         results.append(q_enu)
+
     if vec_ned is not None:
-        vec_enu = np.array([vec_ned[1], vec_ned[0], -vec_ned[2]])
-        vec_enu[0] = vec_ned[1]
-        vec_enu[1] = vec_ned[0]
-        vec_enu[2] = -vec_ned[2]
+        # ✅ NED [N,E,D] -> ENU [E,N,U]
+        vec_enu = np.array([vec_ned[1], vec_ned[0], -vec_ned[2]], dtype=float)
         results.append(vec_enu)
+
     return tuple(results) if len(results) > 1 else results[0]
 
 def make_ros_time(unix_sec, micros):

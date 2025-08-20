@@ -90,33 +90,24 @@ def make_ros_time(iso_time):
     return t, sec * int(1e9) + nanosec
 
 def ned_to_enu(quat_ned=None, vec_ned=None):
-    """
-    Convert NED to ENU.
-    Args:
-        quat_ned (tuple/list/np.array): (x, y, z, w) quaternion in NED.
-        vec_ned (tuple/list/np.array): (x, y, z) vector in NED.
-    Returns:
-        tuple:
-            - quat_enu (x, y, z, w) if quat_ned is provided
-            - vec_enu (x, y, z) if vec_ned is provided
-    """
     results = []
 
     if quat_ned is not None:
         q_ned = R.from_quat(quat_ned)
-        ned_to_enu_rot = R.from_euler('x', np.pi) * R.from_euler('z', np.pi)
+        # ✅ Correct NED->ENU rotation: Rx(pi) then Rz(-pi/2)
+        ned_to_enu_rot = R.from_euler('x', np.pi) * R.from_euler('z', -np.pi/2)
         q_enu = (ned_to_enu_rot * q_ned).as_quat()
+
+        q_enu = q_enu / np.linalg.norm(q_enu)        # normalize
         results.append(q_enu)
 
     if vec_ned is not None:
-        # x stays the same, y and z flip
-        vec_enu = np.array([vec_ned[1], vec_ned[0], -vec_ned[2]])  # NED (x=North, y=East, z=Down) → ENU
-        vec_enu[0] = vec_ned[1]  # ENU.x = East = NED.y
-        vec_enu[1] = vec_ned[0]  # ENU.y = North = NED.x
-        vec_enu[2] = -vec_ned[2] # ENU.z = -Down = Up
+        # ✅ NED [N,E,D] -> ENU [E,N,U]
+        vec_enu = np.array([vec_ned[1], vec_ned[0], -vec_ned[2]], dtype=float)
         results.append(vec_enu)
 
     return tuple(results) if len(results) > 1 else results[0]
+
 
 def main():
     rclpy.init()
@@ -177,12 +168,12 @@ def main():
 
         # Add reasonable covariances (example: tight trust in x/y, less in z, don't trust angular so 1e6)
         msg.twist.covariance = [
-            vx_std**2, 0.0,      0.0,      0.0, 0.0, 0.0,
-            0.0,      vy_std**2, 0.0,      0.0, 0.0, 0.0,
-            0.0,      0.0,      vz_std**2,  0.0, 0.0, 0.0,
-            0.0,      0.0,      0.0,      1e6, 0.0, 0.0,
-            0.0,      0.0,      0.0,      1e6, -1.0, 0.0,
-            0.0,      0.0,      0.0,      1e6, 0.0, -1.0
+            vx_std**2, 0.0,       0.0,       0.0, 0.0, 0.0,
+            0.0,       vy_std**2, 0.0,       0.0, 0.0, 0.0,
+            0.0,       0.0,       vz_std**2, 0.0, 0.0, 0.0,
+            0.0,       0.0,       0.0,       1e6, 0.0, 0.0,
+            0.0,       0.0,       0.0,       0.0, 1e6, 0.0,
+            0.0,       0.0,       0.0,       0.0, 0.0, 1e6
         ]
 
         writer.write(namespace + '/velocity', serialize_message(msg), ts)
@@ -235,10 +226,15 @@ def main():
         t, ts = make_ros_time(row['dateTime'])
         msg = PoseWithCovarianceStamped()
         msg.header.stamp = t
-        msg.header.frame_id = frame_id
+        msg.header.frame_id = "odom"
 
         # Only set Z = depth (positive down), flip to negative up for ENU
         msg.pose.pose.position.z = -float(row['depth'])  # ENU Z = -NED Depth
+        # Not fusing orientation here → use identity quaternion
+        msg.pose.pose.orientation.x = 0.0
+        msg.pose.pose.orientation.y = 0.0
+        msg.pose.pose.orientation.z = 0.0
+        msg.pose.pose.orientation.w = 1.0
 
         # Set unknown values for x, y, and orientation
         msg.pose.covariance = [0.0] * 36
@@ -248,11 +244,6 @@ def main():
         msg.pose.covariance[21] = 1e6   # roll unused
         msg.pose.covariance[28] = 1e6   # pitch unused
         msg.pose.covariance[35] = 1e6   # yaw unused
-        # msg.pose.covariance[0] = -1.0   # x unknown
-        # msg.pose.covariance[7] = -1.0   # y unknown
-        # msg.pose.covariance[21] = -1.0  # roll unknown
-        # msg.pose.covariance[28] = -1.0  # pitch unknown
-        # msg.pose.covariance[35] = -1.0  # yaw unknown
 
         writer.write(namespace + '/depth', serialize_message(msg), ts)
 
