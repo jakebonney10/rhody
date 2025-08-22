@@ -6,7 +6,7 @@ import rclpy
 from rclpy.serialization import serialize_message
 from builtin_interfaces.msg import Time
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Imu, MagneticField
 from rosbag2_py import SequentialWriter, StorageOptions, ConverterOptions
 from rosbag2_py._storage import TopicMetadata
 from scipy.spatial.transform import Rotation as R
@@ -53,6 +53,9 @@ invalid_vel = -32.76
 
 # NOTE: Gyro X, Y, Z values are reported in radians per second (°/s) and ROS2 REP 103 recommends radians per second (rad/s)
 deg2rad = np.pi / 180.0
+
+# NOTE: Magnetometer.csv is in Gauss, set to 1e-4; if it's Tesla, leave 1.0
+MAG_UNIT_SCALE = 1e-4  # <-- change to 1.0 if your values are already in Tesla
 
 # ---- Covariance estimates based on Nortek Nucleus specs ----
 ahrs_roll_pitch_std = np.deg2rad(0.3)      # ~0.3 deg → radians
@@ -116,6 +119,7 @@ def main():
     bottom_df = pd.read_csv("Bottom Track.csv", sep=";")
     imu_df = pd.read_csv("IMU.csv", sep=";")
     ins_df = pd.read_csv("INS.csv", sep=";")
+    mag_df = pd.read_csv("Magnetometer.csv", sep=";")
 
     # Output bag
     if os.path.exists(output_dir):
@@ -148,11 +152,11 @@ def main():
         serialization_format='cdr'
     ))
 
-    # writer.create_topic(TopicMetadata(
-    #     name=namespace + '/pose',
-    #     type='geometry_msgs/msg/PoseWithCovarianceStamped',
-    #     serialization_format='cdr'
-    # ))
+    writer.create_topic(TopicMetadata(
+        name=namespace + '/magnetic_field',
+        type='sensor_msgs/msg/MagneticField',
+        serialization_format='cdr'
+    ))
 
     # ---- Bottom Track → TwistStamped ----
     for _, row in bottom_df.iterrows():
@@ -247,26 +251,37 @@ def main():
 
         writer.write(namespace + '/depth', serialize_message(msg), ts)
 
+    # ---- Magnetometer → MagneticField ----
+    # CSV columns: dateTime, magnetometerX, magnetometerY, magnetometerZ
+    # NED [N,E,D] -> ENU [E,N,U] and convert units to Tesla if needed
+    mag_var = (30e-9)**2  # ~30 nT std dev (example); adjust if you have specs
+    mag_cov = [mag_var, 0.0, 0.0,
+            0.0, mag_var, 0.0,
+            0.0, 0.0, mag_var]
 
-    # # ---- INS → PoseWithCovarianceStamped ----
-    # for _, row in ins_df.iterrows():
-    #     t, ts = make_ros_time(row['dateTime'])
-    #     msg = PoseWithCovarianceStamped()
-    #     msg.header.stamp = t
-    #     msg.header.frame_id = frame_id
-    #     msg.pose.pose.position.x = float(row['latitude'])  # WARN: Lat and Lon need to be swapped for UTM to use this Pose msg
-    #     msg.pose.pose.position.y = float(row['longitude'])
-    #     msg.pose.pose.position.z = float(row['altitude'])
-    #     q_ned = [
-    #         float(row['ahrsDataQuaternionX']),
-    #         float(row['ahrsDataQuaternionY']),
-    #         float(row['ahrsDataQuaternionZ']),
-    #         float(row['ahrsDataQuaternionW'])
-    #     ]
-    #     q_enu = ned_to_enu(quat_ned=q_ned)
-    #     msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w = q_enu
-    #     msg.pose.covariance = [0.5] * 36  # placeholder
-    #     writer.write(namespace + '/pose', serialize_message(msg), ts)
+    for _, row in mag_df.iterrows():
+        t, ts = make_ros_time(row['dateTime'])
+
+        # raw in NED:
+        mag_ned = np.array([
+            float(row['magnetometerX']),
+            float(row['magnetometerY']),
+            float(row['magnetometerZ'])
+        ], dtype=float)
+
+        # NED -> ENU
+        mag_enu = ned_to_enu(vec_ned=mag_ned)
+
+        # Apply unit scale to Tesla
+        mag_enu *= MAG_UNIT_SCALE
+
+        msg = MagneticField()
+        msg.header.stamp = t
+        msg.header.frame_id = frame_id
+        msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z = mag_enu
+        msg.magnetic_field_covariance = mag_cov  # set to zeros if unknown
+
+        writer.write(namespace + '/magnetic_field', serialize_message(msg), ts)
 
     print("✅ ROS 2 bag created at:", output_dir)
     rclpy.shutdown()
