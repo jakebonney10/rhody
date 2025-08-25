@@ -1,3 +1,4 @@
+from csv import writer
 import os
 import shutil
 import pandas as pd
@@ -5,11 +6,12 @@ import numpy as np
 import rclpy
 from rclpy.serialization import serialize_message
 from builtin_interfaces.msg import Time
-from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped, Vector3Stamped
 from sensor_msgs.msg import Imu, MagneticField
 from rosbag2_py import SequentialWriter, StorageOptions, ConverterOptions
 from rosbag2_py._storage import TopicMetadata
 from scipy.spatial.transform import Rotation as R
+#from tf_transformations import euler_from_quaternion, quaternion_from_euler 
 
 """
 nortek2ros.py
@@ -18,24 +20,6 @@ This script processes raw Nortek Nucleus DVL logs (Bottom Track, IMU, and INS da
 and converts them into ROS 2 bag files for use with robot localization systems. 
 The Nortek sensor data, originally in the NED (North-East-Down) coordinate frame, 
 is transformed into the ENU (East-North-Up) frame as required by ROS 2 conventions.
-
-Usage:
-- Place the raw Nortek CSV files ("Bottom Track.csv", "IMU.csv", "INS.csv") in the script's directory.
-- Run the script to generate a ROS 2 bag file in the specified output directory.
-
-Coordinate Frame Conversion:
-- NED (North-East-Down) → ENU (East-North-Up) for both vectors and quaternions.
-
-Output:
-- ROS 2 bag files containing:
-    - `TwistWithCovarianceStamped` messages for velocity data.
-    - `Imu` messages for orientation and angular velocity data.
-    - `PoseWithCovarianceStamped` messages for depth data.
-    - (Optional) `PoseWithCovarianceStamped` messages for INS data.
-
-Note:
-- INS data conversion is commented out but can be enabled if needed.
-- Ensure the Nortek CSV files are formatted correctly with appropriate column names.
 """
 
 # NOTE: Nortek Sensor Coordinate Frame is NED, ROS2 robot localization expects ENU [https://support.nortekgroup.com/hc/en-us/article_attachments/17223428270620]
@@ -92,24 +76,18 @@ def make_ros_time(iso_time):
     t.nanosec = nanosec
     return t, sec * int(1e9) + nanosec
 
-def ned_to_enu(quat_ned=None, vec_ned=None):
-    results = []
+# NED -> ENU (use Rotation so vectors and quats stay consistent)
+P_NED_to_ENU = R.from_matrix([[0, 1, 0],
+                              [1, 0, 0],
+                              [0, 0,-1]])
 
-    if quat_ned is not None:
-        q_ned = R.from_quat(quat_ned)
-        # ✅ Correct NED->ENU rotation: Rx(pi) then Rz(-pi/2)
-        ned_to_enu_rot = R.from_euler('x', np.pi) * R.from_euler('z', -np.pi/2)
-        q_enu = (ned_to_enu_rot * q_ned).as_quat()
+def ned_vec_to_enu(v):
+    """Map NED vector to ENU: [E,N,U] = [Y, X, -Z]."""
+    return P_NED_to_ENU.apply(np.asarray(v, float)).astype(float)
 
-        q_enu = q_enu / np.linalg.norm(q_enu)        # normalize
-        results.append(q_enu)
-
-    if vec_ned is not None:
-        # ✅ NED [N,E,D] -> ENU [E,N,U]
-        vec_enu = np.array([vec_ned[1], vec_ned[0], -vec_ned[2]], dtype=float)
-        results.append(vec_enu)
-
-    return tuple(results) if len(results) > 1 else results[0]
+def ned_quat_to_enu(q_ned_xyzw):
+    """Map a quaternion (xyzw) that orients body w.r.t. NED into ENU."""
+    return (P_NED_to_ENU * R.from_quat(q_ned_xyzw)).as_quat()
 
 
 def main():
@@ -158,6 +136,13 @@ def main():
         serialization_format='cdr'
     ))
 
+    # declare a topic for RPY
+    writer.create_topic(TopicMetadata(
+        name=namespace + '/rpy_ned_deg',  # or rpy_ned_deg 
+        type='geometry_msgs/msg/Vector3Stamped',
+        serialization_format='cdr'
+    ))
+
     # ---- Bottom Track → TwistStamped ----
     for _, row in bottom_df.iterrows():
         if row['velocityX'] <= invalid_vel:  # Ignore invalid velocities
@@ -167,7 +152,7 @@ def main():
         msg.header.stamp = t
         msg.header.frame_id = frame_id
         vel_ned = [row['velocityX'], row['velocityY'], row['velocityZ']]
-        vel_enu = ned_to_enu(vec_ned=vel_ned)
+        vel_enu = ned_vec_to_enu(vel_ned)
         msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z = vel_enu
 
         # Add reasonable covariances (example: tight trust in x/y, less in z, don't trust angular so 1e6)
@@ -189,10 +174,10 @@ def main():
         msg.header.stamp = t
         msg.header.frame_id = frame_id
         gyro_ned = [row['gyroX'], row['gyroY'], row['gyroZ']]  
-        gyro_enu = ned_to_enu(vec_ned=gyro_ned) # Convert NED to ENU
+        gyro_enu = ned_vec_to_enu(gyro_ned) # Convert NED to ENU
         msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = gyro_enu
         acc_ned = [row['accelerometerX'], row['accelerometerY'], row['accelerometerZ']]
-        acc_enu = ned_to_enu(vec_ned=acc_ned)
+        acc_enu = ned_vec_to_enu(acc_ned)
         msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = acc_enu
         msg.orientation_covariance[0] = -1.0  # unknown
         msg.angular_velocity_covariance = imu_ang_vel_cov
@@ -215,7 +200,7 @@ def main():
         ]
 
         # Convert to ENU
-        q_enu = ned_to_enu(quat_ned=q_ned)
+        q_enu = ned_quat_to_enu(q_ned)
         msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = q_enu
 
         # Set unknown covariances for angular vel and acc
@@ -224,6 +209,21 @@ def main():
         msg.linear_acceleration_covariance[0] = -1.0
 
         writer.write(namespace + '/imu_ahrs', serialize_message(msg), ts)
+
+        # Euler angles from AHRS
+        roll_deg   = float(row['ahrsDataRoll'])              # radians (if in deg, convert)
+        pitch_deg  = float(row['ahrsDataPitch'])
+        heading_deg = float(row['ahrsDataHeading'])      # Nortek AHRS heading is degrees
+        heading = np.deg2rad(heading_deg)
+        roll = np.deg2rad(roll_deg)
+        pitch = np.deg2rad(pitch_deg)
+        rpy_ned = Vector3Stamped()
+        rpy_ned.header.stamp = t
+        rpy_ned.header.frame_id = frame_id
+        rpy_ned.vector.x = roll_deg
+        rpy_ned.vector.y = pitch_deg
+        rpy_ned.vector.z = heading_deg
+        writer.write(namespace + '/rpy_ned_deg', serialize_message(rpy_ned), ts)
 
     # ---- INS → PoseWithCovarianceStamped DEPTH----
     for _, row in ins_df.iterrows():
@@ -270,7 +270,8 @@ def main():
         ], dtype=float)
 
         # NED -> ENU
-        mag_enu = ned_to_enu(vec_ned=mag_ned)
+        mag_enu = ned_vec_to_enu(
+            +mag_ned)
 
         # Apply unit scale to Tesla
         mag_enu *= MAG_UNIT_SCALE

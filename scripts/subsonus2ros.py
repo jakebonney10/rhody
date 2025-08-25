@@ -18,26 +18,6 @@ subsonus2ros.py
 This script processes raw data from Subsonus USBL ANPP logs and converts it into ROS 2 bag files for use in robot 
 localization. The Subsonus sensor provides acoustic positioning data in the NED (North-East-Down) coordinate frame, 
 which is transformed into the ENU (East-North-Up) coordinate frame expected by ROS 2.
-
-Usage:
-1. Place the raw Subsonus USBL ANPP log file (`State.csv`) in the same directory as the script.
-2. Run the script: `python subsonus2ros.py`.
-3. The script will generate a ROS 2 bag file in the `subsonus_bag` directory.
-
-Coordinate Frame Transformation:
-- The Subsonus sensor uses the NED coordinate frame, while ROS 2 expects ENU.
-- The script uses the `ned_to_enu` function to transform both quaternion orientations and vector data from NED to ENU.
-
-Output:
-- ROS 2 bag files containing:
-    - `NavSatFix` messages for latitude, longitude, altitude, and position covariance.
-    - `Imu` messages for orientation, angular velocity, and covariance matrices.
-    - `Odometry` messages for position, orientation, and velocity in the ENU frame.
-
-Notes:
-- Ensure ROS 2 is installed and configured properly before running the script.
-- The generated ROS 2 bag files can be used with robot localization tools such as `robot_localization` or `nav2`.
-
 """
 
 # NOTE: Subsonus Sensor Coordinate Frame is NED, ROS2 robot localization expects ENU [https://docs.advancednavigation.com/subsonus/SensorCoordinate.htm]
@@ -48,41 +28,18 @@ fn_state = "RemoteSubsonusState_2.csv"
 fn_track = "RemoteTrack_2.csv"
 fn_raw = "RemoteRawSensors_2.csv"
 
-def euler_to_quaternion(roll, pitch, yaw):
-    roll = np.radians(roll)
-    pitch = np.radians(pitch)
-    yaw = np.radians(yaw)
-    cy = np.cos(yaw * 0.5)
-    sy = np.sin(yaw * 0.5)
-    cp = np.cos(pitch * 0.5)
-    sp = np.sin(pitch * 0.5)
-    cr = np.cos(roll * 0.5)
-    sr = np.sin(roll * 0.5)
-    return (
-        sr * cp * cy - cr * sp * sy,
-        cr * sp * cy + sr * cp * sy,
-        cr * cp * sy - sr * sp * cy,
-        cr * cp * cy + sr * sp * sy
-    )
+# NED -> ENU (use Rotation so vectors and quats stay consistent)
+P_NED_to_ENU = R.from_matrix([[0, 1, 0],
+                              [1, 0, 0],
+                              [0, 0,-1]])
 
-def ned_to_enu(quat_ned=None, vec_ned=None):
-    results = []
+def ned_vec_to_enu(v):
+    """Map NED vector to ENU: [E,N,U] = [Y, X, -Z]."""
+    return P_NED_to_ENU.apply(np.asarray(v, float)).astype(float)
 
-    if quat_ned is not None:
-        q_ned = R.from_quat(quat_ned)
-        # ✅ Correct NED->ENU rotation: Rx(pi) then Rz(-pi/2)
-        ned_to_enu_rot = R.from_euler('x', np.pi) * R.from_euler('z', -np.pi/2)
-        q_enu = (ned_to_enu_rot * q_ned).as_quat()
-
-        q_enu = q_enu / np.linalg.norm(q_enu)        # normalize
-        results.append(q_enu)
-
-    if vec_ned is not None:
-        # ✅ NED [N,E,D] -> ENU [E,N,U]
-        vec_enu = np.array([vec_ned[1], vec_ned[0], -vec_ned[2]], dtype=float)
-        results.append(vec_enu)
-
-    return tuple(results) if len(results) > 1 else results[0]
+def ned_quat_to_enu(q_ned_xyzw):
+    """Map a quaternion (xyzw) that orients body w.r.t. NED into ENU."""
+    return (P_NED_to_ENU * R.from_quat(q_ned_xyzw)).as_quat()
 
 def make_ros_time(unix_sec, micros):
     total_time = float(unix_sec) + float(micros) * 1e-6
@@ -202,8 +159,8 @@ def main():
         imu = Imu()
         imu.header.stamp = ros_time
         imu.header.frame_id = frame_id
-        qx_ned, qy_ned, qz_ned, qw_ned = euler_to_quaternion(row["Roll"], row["Pitch"], row["Heading"])
-        q_enu = ned_to_enu(quat_ned=(qx_ned, qy_ned, qz_ned, qw_ned))
+        q_ned = R.from_euler('xyz', [row["Roll"], row["Pitch"], row["Heading"]]).as_quat()
+        q_enu = ned_quat_to_enu(q_ned)
         imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w = q_enu
 
         try:
@@ -217,7 +174,7 @@ def main():
             continue
 
         angvel_ned = [row["Angular Velocity X"], row["Angular Velocity Y"], row["Angular Velocity Z"]]
-        angvel_enu = ned_to_enu(vec_ned=angvel_ned)
+        angvel_enu = ned_vec_to_enu(angvel_ned)
         imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z = angvel_enu
         imu.angular_velocity_covariance = [0.01] * 9
         imu.linear_acceleration_covariance = [-1.0] * 9  # unknown
@@ -230,8 +187,8 @@ def main():
         twist.header.frame_id = frame_id
 
         lin_vel_ned = [row["Velocity North"], row["Velocity East"], row["Velocity Down"]]
-        lin_vel_enu = ned_to_enu(vec_ned=lin_vel_ned)
-        ang_vel_enu = ned_to_enu(vec_ned=angvel_ned)
+        lin_vel_enu = ned_vec_to_enu(lin_vel_ned)
+        ang_vel_enu = ned_vec_to_enu(angvel_ned)
 
         twist.twist.twist.linear.x, twist.twist.twist.linear.y, twist.twist.twist.linear.z = lin_vel_enu
         twist.twist.twist.angular.x, twist.twist.twist.angular.y, twist.twist.twist.angular.z = ang_vel_enu
