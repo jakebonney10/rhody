@@ -159,15 +159,18 @@ def main():
         imu = Imu()
         imu.header.stamp = ros_time
         imu.header.frame_id = frame_id
-        q_ned = R.from_euler('xyz', [row["Roll"], row["Pitch"], row["Heading"]]).as_quat()
+        q_ned = R.from_euler('xyz', [row["Roll"], row["Pitch"], row["Heading"]], degrees=True).as_quat()
         q_enu = ned_quat_to_enu(q_ned)
         imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w = q_enu
 
         try:
+            roll_sd_rad    = np.deg2rad(float(row["Roll Error"]))
+            pitch_sd_rad   = np.deg2rad(float(row["Pitch Error"]))
+            heading_sd_rad = np.deg2rad(float(row["Heading Error"]))
             imu.orientation_covariance = [
-                float(row["Roll Error"])**2, 0.0, 0.0,
-                0.0, float(row["Pitch Error"])**2, 0.0,
-                0.0, 0.0, float(row["Heading Error"])**2
+                roll_sd_rad**2,   0.0,              0.0,
+                0.0,              pitch_sd_rad**2,  0.0,
+                0.0,              0.0,              heading_sd_rad**2
             ]
         except Exception as e:
             print(f"⚠️ IMU covariance formatting error:\n{row}\n{e}")
@@ -176,8 +179,17 @@ def main():
         angvel_ned = [row["Angular Velocity X"], row["Angular Velocity Y"], row["Angular Velocity Z"]]
         angvel_enu = ned_vec_to_enu(angvel_ned)
         imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z = angvel_enu
-        imu.angular_velocity_covariance = [0.01] * 9
-        imu.linear_acceleration_covariance = [-1.0] * 9  # unknown
+        ang_sd = np.deg2rad(1.0)  # example placeholder: 1 deg/s SD
+        imu.angular_velocity_covariance = [
+            ang_sd**2, 0.0,       0.0,
+            0.0,       ang_sd**2, 0.0,
+            0.0,       0.0,       ang_sd**2
+        ]
+        imu.linear_acceleration_covariance = [
+            -1.0, 0.0,  0.0,
+            0.0, 0.0,  0.0,
+            0.0, 0.0,  0.0
+        ]
 
         writer.write(namespace + '/ins/imu', serialize_message(imu), timestamp)
 
@@ -192,10 +204,17 @@ def main():
 
         twist.twist.twist.linear.x, twist.twist.twist.linear.y, twist.twist.twist.linear.z = lin_vel_enu
         twist.twist.twist.angular.x, twist.twist.twist.angular.y, twist.twist.twist.angular.z = ang_vel_enu
-        twist.twist.covariance = [0.05] * 36  # Conservative guess
+        lin_sd = 0.05  # conservative guess 5 cm/s SD
+        twist.twist.covariance = [
+            float(lin_sd**2), 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, float(lin_sd**2), 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, float(lin_sd**2), 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, float(ang_sd**2), 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, float(ang_sd**2), 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, float(ang_sd**2),
+        ]
 
         writer.write(namespace + '/ins/velocity', serialize_message(twist), timestamp)
-
 
     print(f"✅ ROS 2 bag created in: {output_dir}")
     rclpy.shutdown()
