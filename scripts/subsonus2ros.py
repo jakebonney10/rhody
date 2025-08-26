@@ -159,8 +159,15 @@ def main():
         imu = Imu()
         imu.header.stamp = ros_time
         imu.header.frame_id = frame_id
-        q_ned = R.from_euler('xyz', [row["Roll"], row["Pitch"], row["Heading"]], degrees=True).as_quat()
-        q_enu = ned_quat_to_enu(q_ned)
+        # q_ned = R.from_euler('xyz', [row["Roll"], row["Pitch"], row["Heading"]], degrees=True).as_quat()
+        # q_enu = ned_quat_to_enu(q_ned)
+        
+        # Convert to ENU
+        x_enu = row["Pitch"]
+        y_enu = row["Roll"]
+        z_enu = (90 - row["Heading"]) % 360
+        q_enu = R.from_euler('xyz', [x_enu, y_enu, z_enu], degrees=True).as_quat()
+        
         imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w = q_enu
 
         try:

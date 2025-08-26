@@ -21,17 +21,17 @@
         world_frame: odom  
 
         # IMU0: DVL/IMU with full orientation (roll, pitch, yaw) -- from nortek dvl
-        imu0: sensors/nortek_dvl/imu_ahrs
-        imu0_config: [false, false, false,
-                    true,  true,  true,
-                    false, false, false,
-                    false, false, false,
-                    false, false, false]
-        imu0_remove_gravitational_acceleration: false
-        imu0_queue_size: 10
-        imu0_relative: false
-        imu0_differential: false
-        imu0_rejection_threshold: 5.0
+        # imu0: sensors/nortek_dvl/imu_ahrs
+        # imu0_config: [false, false, false,
+        #             true,  true,  true,
+        #             false, false, false,
+        #             false, false, false,
+        #             false, false, false]
+        # imu0_remove_gravitational_acceleration: false
+        # imu0_queue_size: 10
+        # imu0_relative: false
+        # imu0_differential: false
+        # imu0_rejection_threshold: 5.0
 
         # IMU1: angular velocity + linear acceleration -- from nortek dvl
         # imu1: sensors/nortek_dvl/imu
@@ -47,14 +47,14 @@
         # imu1_rejection_threshold: 5.0
 
         # Twist0: DVL velocity x/y/z -- from nortek dvl
-        twist0: sensors/nortek_dvl/velocity
-        twist0_config: [false, false, false,
-                        false, false, false,
-                        true,  true,  true,
-                        false, false, false,
-                        false, false, false]
-        twist0_queue_size: 10
-        twist0_rejection_threshold: 5.0
+        # twist0: sensors/nortek_dvl/velocity
+        # twist0_config: [false, false, false,
+        #                 false, false, false,
+        #                 true,  true,  true,
+        #                 false, false, false,
+        #                 false, false, false]
+        # twist0_queue_size: 10
+        # twist0_rejection_threshold: 5.0
 
         # Pose0: Depth (Z only) -- from nortek dvl
         pose0: sensors/nortek_dvl/depth

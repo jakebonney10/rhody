@@ -6,16 +6,16 @@
   <arg name="vessel_config" default="rhody"/>
 
   <!-- EKF Global -->
-  <!-- <node pkg="robot_localization" exec="ekf_node" name="ekf_global" output="screen" namespace="$(var vessel_ns)/nav">
+  <node pkg="robot_localization" exec="ekf_node" name="ekf_global" output="screen" namespace="$(var vessel_ns)/nav">
     <param name="use_sim_time" value="true"/>
     <param from="$(find-pkg-share rhody)/config/ekf_global.yaml"/>
-  </node> -->
+  </node>
 
   <!-- EKF Local -->
-  <node pkg="robot_localization" exec="ekf_node" name="ekf_local" output="screen" namespace="$(var vessel_ns)/nav">
+  <!-- <node pkg="robot_localization" exec="ekf_node" name="ekf_local" output="screen" namespace="$(var vessel_ns)/nav">
     <param name="use_sim_time" value="true"/>
     <param from="$(find-pkg-share rhody)/config/ekf_local.yaml"/>
-  </node>
+  </node> -->
 
 </launch>
 

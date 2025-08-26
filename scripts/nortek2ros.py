@@ -26,6 +26,8 @@ is transformed into the ENU (East-North-Up) frame as required by ROS 2 conventio
 frame_id = "dvl_link"
 namespace = "rhody/nav/sensors/nortek_dvl"
 output_dir = "nortek_dvl_bag"
+start_time  = pd.to_datetime("2025-05-28 12:38:12-04:00")  # EDT is UTC-4
+end_time    = pd.to_datetime("2025-05-28 13:38:12-04:00")
 
 # NOTE: Conservative estimates for covariances of Bottom Track based off of manual (squared std dev)
 vx_std = 0.006  # Horizontal (X, Y): ±0.3% of velocity ±0.003 m/s
@@ -93,11 +95,24 @@ def ned_quat_to_enu(q_ned_xyzw):
 def main():
     rclpy.init()
 
-    # Load the CSVs
-    bottom_df = pd.read_csv("Bottom Track.csv", sep=";")
-    imu_df = pd.read_csv("IMU.csv", sep=";")
-    ins_df = pd.read_csv("INS.csv", sep=";")
-    mag_df = pd.read_csv("Magnetometer.csv", sep=";")
+    # Load and filter the CSVs
+    bottom_df = pd.read_csv("Bottom Track.csv", sep=";", parse_dates=["dateTime"])
+    bottom_df = bottom_df[bottom_df["dateTime"] >= start_time]
+    bottom_df = bottom_df[bottom_df["dateTime"] <= end_time]
+
+    imu_df = pd.read_csv("IMU.csv", sep=";", parse_dates=["dateTime"])
+    imu_df = imu_df[imu_df["dateTime"] >= start_time]
+    imu_df = imu_df[imu_df["dateTime"] <= end_time]
+
+    ins_df = pd.read_csv("INS.csv", sep=";", parse_dates=["dateTime"])
+    ins_df = ins_df[ins_df["dateTime"] >= start_time]
+    ins_df = ins_df[ins_df["dateTime"] <= end_time]
+
+    mag_df = pd.read_csv("Magnetometer.csv", sep=";", parse_dates=["dateTime"])
+    mag_df = mag_df[mag_df["dateTime"] >= start_time]
+    mag_df = mag_df[mag_df["dateTime"] <= end_time]
+
+    print("✅ Loaded CSV files between cutoff:", start_time, "to", end_time)
 
     # Output bag
     if os.path.exists(output_dir):
@@ -136,7 +151,6 @@ def main():
         serialization_format='cdr'
     ))
 
-    # declare a topic for RPY
     writer.create_topic(TopicMetadata(
         name=namespace + '/rpy_ned_deg',  # or rpy_ned_deg 
         type='geometry_msgs/msg/Vector3Stamped',
@@ -199,17 +213,6 @@ def main():
             float(row['ahrsDataQuaternionW'])
         ]
 
-        # Convert to ENU
-        q_enu = ned_quat_to_enu(q_ned)
-        msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = q_enu
-
-        # Set unknown covariances for angular vel and acc
-        msg.orientation_covariance = ahrs_orientation_cov
-        msg.angular_velocity_covariance[0] = -1.0
-        msg.linear_acceleration_covariance[0] = -1.0
-
-        writer.write(namespace + '/imu_ahrs', serialize_message(msg), ts)
-
         # Euler angles from AHRS
         roll_deg   = float(row['ahrsDataRoll'])              # radians (if in deg, convert)
         pitch_deg  = float(row['ahrsDataPitch'])
@@ -225,12 +228,28 @@ def main():
         rpy_ned.vector.z = heading_deg
         writer.write(namespace + '/rpy_ned_deg', serialize_message(rpy_ned), ts)
 
+        # Convert to ENU
+        x_enu = pitch_deg
+        y_enu = roll_deg
+        z_enu = (90 - heading_deg) % 360
+        q_enu = R.from_euler('xyz', [x_enu, y_enu, z_enu], degrees=True).as_quat()
+
+        # q_enu = ned_quat_to_enu(q_ned)
+        msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = q_enu
+
+        # Set unknown covariances for angular vel and acc
+        msg.orientation_covariance = ahrs_orientation_cov
+        msg.angular_velocity_covariance[0] = -1.0
+        msg.linear_acceleration_covariance[0] = -1.0
+
+        writer.write(namespace + '/imu_ahrs', serialize_message(msg), ts)
+
     # ---- INS → PoseWithCovarianceStamped DEPTH----
     for _, row in ins_df.iterrows():
         t, ts = make_ros_time(row['dateTime'])
         msg = PoseWithCovarianceStamped()
         msg.header.stamp = t
-        msg.header.frame_id = "odom"
+        msg.header.frame_id = "base_link"
 
         # Only set Z = depth (positive down), flip to negative up for ENU
         msg.pose.pose.position.z = -float(row['depth'])  # ENU Z = -NED Depth
@@ -243,11 +262,11 @@ def main():
         # Set unknown values for x, y, and orientation
         msg.pose.covariance = [0.0] * 36
         msg.pose.covariance[14] = 0.25  # z variance (0.5m std dev as example)
-        msg.pose.covariance[0] = 1e6    # x unused
-        msg.pose.covariance[7] = 1e6    # y unused
-        msg.pose.covariance[21] = 1e6   # roll unused
-        msg.pose.covariance[28] = 1e6   # pitch unused
-        msg.pose.covariance[35] = 1e6   # yaw unused
+        msg.pose.covariance[0] = 1.0    # x unused
+        msg.pose.covariance[7] = 1.0    # y unused
+        msg.pose.covariance[21] = 1.0   # roll unused
+        msg.pose.covariance[28] = 1.0   # pitch unused
+        msg.pose.covariance[35] = 1.0   # yaw unused
 
         writer.write(namespace + '/depth', serialize_message(msg), ts)
 
@@ -270,8 +289,7 @@ def main():
         ], dtype=float)
 
         # NED -> ENU
-        mag_enu = ned_vec_to_enu(
-            +mag_ned)
+        mag_enu = ned_vec_to_enu(mag_ned)
 
         # Apply unit scale to Tesla
         mag_enu *= MAG_UNIT_SCALE
