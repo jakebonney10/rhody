@@ -20,6 +20,14 @@
         base_link_frame: base_link
         world_frame: odom  
 
+        # IMU0: from Gazebo simulated IMU sensor
+        imu0: /demo/imu
+        imu0_config: [false, false, false,
+                      false, false, false,
+                      false, false, false,
+                      false, false, true,
+                      false, false, false]
+
         # IMU0: DVL/IMU with full orientation (roll, pitch, yaw) -- from nortek dvl
         # imu0: sensors/nortek_dvl/imu_ahrs
         # imu0_config: [false, false, false,
@@ -57,16 +65,16 @@
         # twist0_rejection_threshold: 5.0
 
         # Pose0: Depth (Z only) -- from nortek dvl
-        pose0: sensors/nortek_dvl/depth
-        pose0_config: [false, false, true,
-                    false, false, false,
-                    false, false, false,
-                    false, false, false,
-                    false, false, false]
-        pose0_queue_size: 10
-        pose0_relative: false
-        pose0_differential: false
-        pose0_rejection_threshold: 5.0
+        # pose0: sensors/nortek_dvl/depth
+        # pose0_config: [false, false, true,
+        #             false, false, false,
+        #             false, false, false,
+        #             false, false, false,
+        #             false, false, false]
+        # pose0_queue_size: 10
+        # pose0_relative: false
+        # pose0_differential: false
+        # pose0_rejection_threshold: 5.0
 
         # [ADVANCED] The process noise covariance matrix can be difficult to tune, and can vary for each application, so it is
         # exposed as a configuration parameter. This matrix represents the noise we add to the total error after each

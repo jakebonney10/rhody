@@ -88,12 +88,11 @@ install(TARGETS
 )
 install(DIRECTORY
   launch
+  config
   urdf
   meshes
-  DESTINATION share/${PROJECT_NAME}/
-)
-install(DIRECTORY
-  config
+  rviz
+  world
   DESTINATION share/${PROJECT_NAME}/
 )
 

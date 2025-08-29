@@ -1,36 +1,25 @@
-import os
 import launch
+from launch.substitutions import Command, LaunchConfiguration
 import launch_ros
-from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, RegisterEventHandler, Shutdown, LogInfo
-from launch.substitutions import LaunchConfiguration, Command
-from launch.event_handlers import OnProcessExit
+import os
 from launch_ros.parameter_descriptions import ParameterValue
-from launch_ros.actions import Node
 
 def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(package='rhody').find('rhody')
     default_model_path = os.path.join(pkg_share, 'urdf/rhody2.urdf')
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     world_path=os.path.join(pkg_share, 'world/my_world.sdf')
-
-    # Robot state publisher
-    robot_state_publisher_node = Node(
+    
+    robot_state_publisher_node = launch_ros.actions.Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        namespace='rhody',
-        parameters=[
-            # ✅ wrap the xacro command so the param is a string, not YAML
-            {'robot_description': ParameterValue(
+        parameters=[{
+            'robot_description': ParameterValue(
                 Command(['xacro ', LaunchConfiguration('model')]),
-                value_type=str)},
-            {'use_sim_time': LaunchConfiguration('use_sim_time')}
-        ],
+                value_type=str
+            )
+        }, {'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
-
     joint_state_publisher_node = launch_ros.actions.Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
@@ -38,32 +27,6 @@ def generate_launch_description():
         condition=launch.conditions.UnlessCondition(LaunchConfiguration('gui')),
         parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
-
-    # NavSat transform node
-    # navsat_transform_node = Node(
-    #     package='robot_localization',
-    #     executable='navsat_transform_node',
-    #     name='navsat_transform_node',
-    #     output='screen',
-    #     namespace='rhody',
-    #     parameters=[os.path.join(get_package_share_directory("rhody"), 'config', 'navsat_transform.yaml')],
-    # )
-
-    robot_localization_node = launch_ros.actions.Node(
-         package='robot_localization',
-         executable='ekf_node',
-         name='ekf_node',
-         output='screen',
-         parameters=[os.path.join(pkg_share, 'config/ekf.yaml'), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
-    )
-
-    spawn_entity = launch_ros.actions.Node(
-    	package='gazebo_ros', 
-    	executable='spawn_entity.py',
-        arguments=['-entity', 'rhody', '-topic', 'robot_description'],
-        output='screen'
-    )
-
     rviz_node = launch_ros.actions.Node(
         package='rviz2',
         executable='rviz2',
@@ -71,19 +34,21 @@ def generate_launch_description():
         output='screen',
         arguments=['-d', LaunchConfiguration('rvizconfig')],
     )
-
-    # Cleanup handler: if gazebo exits, shut down everything
-    gazebo_cleanup = RegisterEventHandler(
-        OnProcessExit(
-            target_action=spawn_entity,
-            on_exit=[
-                LogInfo(msg='[launch] gzserver exited, shutting down launch'),
-                Shutdown()
-            ]
-        )
+    spawn_entity = launch_ros.actions.Node(
+    	package='gazebo_ros', 
+    	executable='spawn_entity.py',
+        arguments=['-entity', 'sam_bot', '-topic', 'robot_description'],
+        output='screen'
+    )
+    robot_localization_node = launch_ros.actions.Node(
+         package='robot_localization',
+         executable='ekf_node',
+         name='ekf_node',
+         output='screen',
+         parameters=[os.path.join(pkg_share, 'config/ekf_simple.yaml'), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
 
-    return LaunchDescription([
+    return launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(name='gui', default_value='True',
                                             description='Flag to enable joint_state_publisher_gui'),
         launch.actions.DeclareLaunchArgument(name='model', default_value=default_model_path,
@@ -93,11 +58,9 @@ def generate_launch_description():
         launch.actions.DeclareLaunchArgument(name='use_sim_time', default_value='True',
                                             description='Flag to enable use_sim_time'),
         launch.actions.ExecuteProcess(cmd=['gazebo', '--verbose', '-s', 'libgazebo_ros_init.so', '-s', 'libgazebo_ros_factory.so', world_path], output='screen'),
-        robot_state_publisher_node,
         joint_state_publisher_node,
+        robot_state_publisher_node,
         spawn_entity,
         robot_localization_node,
-        rviz_node,
-        gazebo_cleanup,
-        # navsat_transform_node,
+        rviz_node
     ])
