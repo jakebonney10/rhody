@@ -6,6 +6,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(package='rhody').find('rhody')
+    default_namespace = 'rhody/nav'
     default_model_path = os.path.join(pkg_share, 'urdf/rhody2.urdf')
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     world_path=os.path.join(pkg_share, 'world/my_world.sdf')
@@ -13,6 +14,7 @@ def generate_launch_description():
     robot_state_publisher_node = launch_ros.actions.Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
+        namespace=default_namespace,
         parameters=[{
             'robot_description': ParameterValue(
                 Command(['xacro ', LaunchConfiguration('model')]),
@@ -44,6 +46,7 @@ def generate_launch_description():
          package='robot_localization',
          executable='ekf_node',
          name='ekf_node',
+         namespace=default_namespace,
          output='screen',
          parameters=[os.path.join(pkg_share, 'config/ekf_simple.yaml'), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )

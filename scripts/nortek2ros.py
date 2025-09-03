@@ -249,7 +249,7 @@ def main():
         t, ts = make_ros_time(row['dateTime'])
         msg = PoseWithCovarianceStamped()
         msg.header.stamp = t
-        msg.header.frame_id = "base_link"
+        msg.header.frame_id = "odom"
 
         # Only set Z = depth (positive down), flip to negative up for ENU
         msg.pose.pose.position.z = -float(row['depth'])  # ENU Z = -NED Depth
