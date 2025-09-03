@@ -165,9 +165,9 @@ def main():
         msg = TwistWithCovarianceStamped()
         msg.header.stamp = t
         msg.header.frame_id = frame_id
-        vel_ned = [row['velocityX'], row['velocityY'], row['velocityZ']]
+        vel_ned = [row['velocityX'], row['velocityY'], -row['velocityZ']]
         vel_enu = ned_vec_to_enu(vel_ned)
-        msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z = vel_enu
+        msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z = vel_ned
 
         # Add reasonable covariances (example: tight trust in x/y, less in z, don't trust angular so 1e6)
         msg.twist.covariance = [
@@ -187,12 +187,12 @@ def main():
         msg = Imu()
         msg.header.stamp = t
         msg.header.frame_id = frame_id
-        gyro_ned = [row['gyroX'], row['gyroY'], row['gyroZ']]  
+        gyro_ned = [row['gyroX'], row['gyroY'], -row['gyroZ']]  
         gyro_enu = ned_vec_to_enu(gyro_ned) # Convert NED to ENU
-        msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = gyro_enu
-        acc_ned = [row['accelerometerX'], row['accelerometerY'], row['accelerometerZ']]
+        msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = gyro_ned
+        acc_ned = [row['accelerometerX'], row['accelerometerY'], -row['accelerometerZ']]
         acc_enu = ned_vec_to_enu(acc_ned)
-        msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = acc_enu
+        msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = acc_ned
         msg.orientation_covariance[0] = -1.0  # unknown
         msg.angular_velocity_covariance = imu_ang_vel_cov
         msg.linear_acceleration_covariance = imu_lin_acc_cov
@@ -217,9 +217,9 @@ def main():
         roll_deg   = float(row['ahrsDataRoll'])              # radians (if in deg, convert)
         pitch_deg  = float(row['ahrsDataPitch'])
         heading_deg = float(row['ahrsDataHeading'])      # Nortek AHRS heading is degrees
-        heading = np.deg2rad(heading_deg)
-        roll = np.deg2rad(roll_deg)
-        pitch = np.deg2rad(pitch_deg)
+        roll_rad = np.deg2rad(roll_deg)
+        pitch_rad = np.deg2rad(pitch_deg)
+        heading_rad = np.deg2rad(heading_deg)
         rpy_ned = Vector3Stamped()
         rpy_ned.header.stamp = t
         rpy_ned.header.frame_id = frame_id
@@ -232,7 +232,7 @@ def main():
         x_enu = pitch_deg
         y_enu = roll_deg
         z_enu = (90 - heading_deg) % 360
-        q_enu = R.from_euler('xyz', [x_enu, y_enu, z_enu], degrees=True).as_quat()
+        q_enu = R.from_euler('xyz', [roll_deg, -pitch_deg, heading_deg], degrees=True).as_quat()
 
         # q_enu = ned_quat_to_enu(q_ned)
         msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = q_enu
