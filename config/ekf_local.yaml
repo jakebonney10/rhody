@@ -2,7 +2,6 @@
 /**:
     ekf_node:
         ros__parameters:
-
             frequency: 30.0
             two_d_mode: false
             publish_acceleration: true
