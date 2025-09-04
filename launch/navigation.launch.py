@@ -10,7 +10,8 @@ def generate_launch_description():
     default_model_path = os.path.join(pkg_share, 'urdf/rhody2.urdf')
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     world_path=os.path.join(pkg_share, 'world/my_world.sdf')
-    
+    ekf_config = 'config/ekf_local.yaml'
+
     robot_state_publisher_node = launch_ros.actions.Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -48,7 +49,7 @@ def generate_launch_description():
          name='ekf_node',
          namespace=default_namespace,
          output='screen',
-         parameters=[os.path.join(pkg_share, 'config/ekf_local.yaml'), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
+         parameters=[os.path.join(pkg_share, ekf_config), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
 
     return launch.LaunchDescription([
