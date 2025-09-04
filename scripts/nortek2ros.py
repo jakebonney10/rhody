@@ -285,7 +285,7 @@ def main():
         mag_ned = np.array([
             float(row['magnetometerX']),
             float(row['magnetometerY']),
-            float(row['magnetometerZ'])
+            -float(row['magnetometerZ'])
         ], dtype=float)
 
         # NED -> ENU
@@ -297,7 +297,7 @@ def main():
         msg = MagneticField()
         msg.header.stamp = t
         msg.header.frame_id = frame_id
-        msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z = mag_enu
+        msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z = mag_ned
         msg.magnetic_field_covariance = mag_cov  # set to zeros if unknown
 
         writer.write(namespace + '/magnetic_field', serialize_message(msg), ts)
