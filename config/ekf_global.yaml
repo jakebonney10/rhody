@@ -1,6 +1,6 @@
 ### ekf config file ###
 /**:
-    ekf_node:
+    ekf_global:
         ros__parameters:
             frequency: 30.0
             two_d_mode: false
@@ -17,7 +17,7 @@
             #    observations) then:
             #     3a. Set your "world_frame" to your map_frame value
             #     3b. MAKE SURE something else is generating the odom->base_link transform. Note that this can even be another state estimation node
-            map_frame: map  
+            map_frame: map
             odom_frame: utm_local
             base_link_frame: base_link
             world_frame: utm_local
@@ -63,12 +63,12 @@
                         false, false, false]
 
             #Pose1: USBL global position (X/Y UTM) from gps2map -- from subsonus usbl
-            # pose0: /utm/rhody/nav/sensors/subsonus_usbl/fix  
-            # pose0_config: [true, true, true,
-            #             false, false, false,
-            #             false, false, false,
-            #             false, false, false,
-            #             false, false, false]
+            pose0: /utm/rhody/nav/sensors/subsonus_usbl/fix  
+            pose0_config: [true, true, true,
+                        false, false, false,
+                        false, false, false,
+                        false, false, false,
+                        false, false, false]
 
 
 

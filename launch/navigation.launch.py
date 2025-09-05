@@ -46,10 +46,12 @@ def generate_launch_description():
     robot_localization_node = launch_ros.actions.Node(
          package='robot_localization',
          executable='ekf_node',
-         name='ekf_node',
+         name='ekf_local',
          namespace=default_namespace,
          output='screen',
-         parameters=[os.path.join(pkg_share, ekf_config), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
+         parameters=[os.path.join(pkg_share, ekf_config), {'use_sim_time': LaunchConfiguration('use_sim_time')}],
+         remappings=[('odometry/filtered', 'odometry/local'),
+                     ('accel/filtered', 'accel/local')],
     )
 
     return launch.LaunchDescription([
