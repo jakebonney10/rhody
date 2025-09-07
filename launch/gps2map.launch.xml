@@ -11,7 +11,7 @@
   </node>
 
   <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="utm_to_odom" args="0 0 0 0 0 0 utm_local odom" /> -->
-  <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="utm_to_map" args="0 0 0 0 0 0 map odom" /> -->
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="utm_to_map" args="0 0 0 0 0 0 1 map odom" />
   <node pkg="tf2_ros" exec="static_transform_publisher" name="static_tf_map" args="0 0 0 0 0 0 1 utm_local map" />
 
 </launch>

@@ -63,12 +63,13 @@
                         false, false, false]
 
             #Pose1: USBL global position (X/Y UTM) from gps2map -- from subsonus usbl
-            pose0: /utm/rhody/nav/sensors/subsonus_usbl/fix  
-            pose0_config: [true, true, true,
+            pose1: /utm/rhody/nav/sensors/subsonus_usbl/fix
+            pose1_config: [true, true, false,
                         false, false, false,
                         false, false, false,
                         false, false, false,
                         false, false, false]
+            pose1_rejection_threshold: 5.0
 
 
 
