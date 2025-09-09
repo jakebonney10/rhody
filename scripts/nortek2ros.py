@@ -26,8 +26,14 @@ is transformed into the ENU (East-North-Up) frame as required by ROS 2 conventio
 frame_id = "dvl_link"
 namespace = "rhody/nav/sensors/nortek_dvl"
 output_dir = "nortek_dvl_bag"
-start_time  = pd.to_datetime("2025-05-28 12:38:12-04:00")  # EDT is UTC-4
-end_time    = pd.to_datetime("2025-05-28 13:38:12-04:00")
+#start_time  = pd.to_datetime("2025-05-28 12:38:12-04:00")  # EDT is UTC-4
+#end_time    = pd.to_datetime("2025-05-28 13:38:12-04:00")
+# start_time  = pd.to_datetime("2025-05-29 13:05:12-04:00")  # EDT is UTC-4
+# end_time    = pd.to_datetime("2025-05-29 14:05:12-04:00")
+start_time  = pd.to_datetime("2025-05-29 17:47:33-04:00")  # EDT is UTC-4
+end_time    = pd.to_datetime("2025-05-29 18:47:33-04:00")
+start_time = None
+end_time   = None
 
 # NOTE: Conservative estimates for covariances of Bottom Track based off of manual (squared std dev)
 vx_std = 0.006  # Horizontal (X, Y): ±0.3% of velocity ±0.003 m/s
@@ -91,26 +97,27 @@ def ned_quat_to_enu(q_ned_xyzw):
     """Map a quaternion (xyzw) that orients body w.r.t. NED into ENU."""
     return (P_NED_to_ENU * R.from_quat(q_ned_xyzw)).as_quat()
 
+def apply_time_filter(df, start, end, col="dateTime"):
+    if start is not None:
+        df = df[df[col] >= start]
+    if end is not None:
+        df = df[df[col] <= end]
+    return df
 
 def main():
     rclpy.init()
 
-    # Load and filter the CSVs
+    # Load CSVs
     bottom_df = pd.read_csv("Bottom Track.csv", sep=";", parse_dates=["dateTime"])
-    bottom_df = bottom_df[bottom_df["dateTime"] >= start_time]
-    bottom_df = bottom_df[bottom_df["dateTime"] <= end_time]
+    imu_df    = pd.read_csv("IMU.csv", sep=";", parse_dates=["dateTime"])
+    ins_df    = pd.read_csv("INS.csv", sep=";", parse_dates=["dateTime"])
+    mag_df    = pd.read_csv("Magnetometer.csv", sep=";", parse_dates=["dateTime"])
 
-    imu_df = pd.read_csv("IMU.csv", sep=";", parse_dates=["dateTime"])
-    imu_df = imu_df[imu_df["dateTime"] >= start_time]
-    imu_df = imu_df[imu_df["dateTime"] <= end_time]
-
-    ins_df = pd.read_csv("INS.csv", sep=";", parse_dates=["dateTime"])
-    ins_df = ins_df[ins_df["dateTime"] >= start_time]
-    ins_df = ins_df[ins_df["dateTime"] <= end_time]
-
-    mag_df = pd.read_csv("Magnetometer.csv", sep=";", parse_dates=["dateTime"])
-    mag_df = mag_df[mag_df["dateTime"] >= start_time]
-    mag_df = mag_df[mag_df["dateTime"] <= end_time]
+    # Apply optional filtering
+    bottom_df = apply_time_filter(bottom_df, start_time, end_time)
+    imu_df    = apply_time_filter(imu_df,    start_time, end_time)
+    ins_df    = apply_time_filter(ins_df,    start_time, end_time)
+    mag_df    = apply_time_filter(mag_df,    start_time, end_time)
 
     print("✅ Loaded CSV files between cutoff:", start_time, "to", end_time)
 

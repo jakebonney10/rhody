@@ -24,9 +24,9 @@ which is transformed into the ENU (East-North-Up) coordinate frame expected by R
 frame_id = "usbl_link"
 namespace = "rhody/nav/sensors/subsonus_usbl"
 output_dir = "subsonus_bag"
-fn_state = "RemoteSubsonusState_2.csv"
-fn_track = "RemoteTrack_2.csv"
-fn_raw = "RemoteRawSensors_2.csv"
+fn_state = "RemoteSubsonusState_1.csv"
+fn_track = "RemoteTrack_1.csv"
+fn_raw = "RemoteRawSensors_1.csv"
 
 # NED -> ENU (use Rotation so vectors and quats stay consistent)
 P_NED_to_ENU = R.from_matrix([[0, 1, 0],

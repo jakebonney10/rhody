@@ -8,12 +8,25 @@ from rosbag2_py._storage import TopicMetadata
 from builtin_interfaces.msg import Time
 from rosidl_runtime_py.utilities import get_message
 
+# Unknown dive 5
+# input_bags = [
+#     "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/SUBSONUS/ANPP_LOG_000231_2025_05_28_16_38_12/subsonus_bag/subsonus_bag_0.db3",
+#     "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/SUBSONUS/ANPP_LOG_000233_2025_05_28_18_57_05/subsonus_bag/subsonus_bag_0.db3",
+#     "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/DVL/Data0014_300414/nortek_dvl_bag/nortek_dvl_bag_0.db3"
+# ]
+
+# Adiramled
 input_bags = [
-    "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/SUBSONUS/ANPP_LOG_000231_2025_05_28_16_38_12/subsonus_bag/subsonus_bag_0.db3",
-    "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/SUBSONUS/ANPP_LOG_000233_2025_05_28_18_57_05/subsonus_bag/subsonus_bag_0.db3",
-    "/home/bonnaroo/Desktop/20250528_Unknown_005_NAV_Data/DVL/Data0014_300414/nortek_dvl_bag/nortek_dvl_bag_0.db3"
+    "/media/bonnaroo/Seagate/20250529_Adiramled/DVL/Data0017_300414/nortek_dvl_bag/nortek_dvl_bag_0.db3",
+    "/media/bonnaroo/Seagate/20250529_Adiramled/DVL/Data0017_300414_2/nortek_dvl_bag/nortek_dvl_bag_0.db3",
+    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000112_2025_05_29_12_52_07/subsonus_bag/subsonus_bag_0.db3",
+    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000113_2025_05_29_15_09_45/subsonus_bag/subsonus_bag_0.db3",
+    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000114_2025_05_29_17_23_08/subsonus_bag/subsonus_bag_0.db3",
+    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000115_2025_05_29_19_36_18/subsonus_bag/subsonus_bag_0.db3",
+    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000116_2025_05_29_21_49_02/subsonus_bag/subsonus_bag_0.db3"
 ]
-output_bag = "/home/bonnaroo/Desktop/merged_bag_20250528_Unknown_005"
+
+output_bag = "/home/bonnaroo/Desktop/merged_bag_20250529_Adiramled"
 
 def merge_rosbags(input_bag_paths, output_bag_path):
     rclpy.init()
