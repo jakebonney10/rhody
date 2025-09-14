@@ -1,10 +1,10 @@
 /**:
   ros__parameters:
-    position_topic: sensors/subsonus_usbl/fix
-    topics: ["sensors/subsonus_usbl/fix"] # Use empty list to subscribe to all IMU/NavSatFix topics
+    position_topic: sensors/subsonus_usbl/ins/fix
+    topics: ["sensors/subsonus_usbl/ins/fix"] # Use empty list to subscribe to all IMU/NavSatFix topics
     projected_frame: utm_local
     map_projection: utm
     utm_zone: 18
-    origin_lat: 43.61214232381858     # Replace with your local datum origin latitude
-    origin_lon: -76.55326599612673   # Replace with your local datum origin longitude
+    origin_lat: 43.70189943430362 # dive unknown 5: 43.61214232381858     # Replace with your local datum origin latitude
+    origin_lon: -76.3770951834403 # dive unknown 5: -76.55326599612673   # Replace with your local datum origin longitude
     origin_z: 0.0            # Often 0, or you can use seafloor depth reference

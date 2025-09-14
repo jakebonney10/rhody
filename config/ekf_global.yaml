@@ -63,7 +63,7 @@
                         false, false, false]
 
             #Pose1: USBL global position (X/Y UTM) from gps2map -- from subsonus usbl
-            pose1: /utm/rhody/nav/sensors/subsonus_usbl/fix
+            pose1: /utm/rhody/nav/sensors/subsonus_usbl/ins/fix
             pose1_config: [true, true, false,
                         false, false, false,
                         false, false, false,
