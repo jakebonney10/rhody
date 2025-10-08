@@ -24,9 +24,9 @@ which is transformed into the ENU (East-North-Up) coordinate frame expected by R
 frame_id = "usbl_link"
 namespace = "rhody/nav/sensors/subsonus_usbl"
 output_dir = "subsonus_bag"
-fn_state = "RemoteSubsonusState_1.csv"
-fn_track = "RemoteTrack_1.csv"
-fn_raw = "RemoteRawSensors_1.csv"
+fn_state = "RemoteSubsonusState_2.csv"
+fn_track = "RemoteTrack_2.csv"
+fn_raw = "RemoteRawSensors_2.csv"
 
 # NED -> ENU (use Rotation so vectors and quats stay consistent)
 P_NED_to_ENU = R.from_matrix([[0, 1, 0],
@@ -163,8 +163,8 @@ def main():
         # q_enu = ned_quat_to_enu(q_ned)
         
         # Convert to ENU
-        x_enu = row["Pitch"]
-        y_enu = row["Roll"]
+        x_enu = row["Roll"]
+        y_enu = -row["Pitch"]
         z_enu = (90 - row["Heading"]) % 360
         q_enu = R.from_euler('xyz', [x_enu, y_enu, z_enu], degrees=True).as_quat()
         
@@ -184,8 +184,8 @@ def main():
             continue
 
         angvel_ned = [row["Angular Velocity X"], row["Angular Velocity Y"], row["Angular Velocity Z"]]
-        angvel_enu = ned_vec_to_enu(angvel_ned)
-        imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z = angvel_enu
+        ang_vel_enu = [row["Angular Velocity X"], -row["Angular Velocity Y"], -row["Angular Velocity Z"]]
+        imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z = ang_vel_enu
         ang_sd = np.deg2rad(1.0)  # example placeholder: 1 deg/s SD
         imu.angular_velocity_covariance = [
             ang_sd**2, 0.0,       0.0,
@@ -206,8 +206,9 @@ def main():
         twist.header.frame_id = frame_id
 
         lin_vel_ned = [row["Velocity North"], row["Velocity East"], row["Velocity Down"]]
-        lin_vel_enu = ned_vec_to_enu(lin_vel_ned)
-        ang_vel_enu = ned_vec_to_enu(angvel_ned)
+        #lin_vel_enu = ned_vec_to_enu(lin_vel_ned)
+        lin_vel_enu = [row["Velocity East"], row["Velocity North"], -row["Velocity Down"]]
+        #ang_vel_enu = ned_vec_to_enu(angvel_ned)
 
         twist.twist.twist.linear.x, twist.twist.twist.linear.y, twist.twist.twist.linear.z = lin_vel_enu
         twist.twist.twist.angular.x, twist.twist.twist.angular.y, twist.twist.twist.angular.z = ang_vel_enu

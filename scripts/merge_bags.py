@@ -16,17 +16,24 @@ from rosidl_runtime_py.utilities import get_message
 # ]
 
 # Adiramled
+# input_bags = [
+#     "/media/bonnaroo/Seagate/20250529_Adiramled/DVL/Data0017_300414/nortek_dvl_bag/nortek_dvl_bag_0.db3",
+#     "/media/bonnaroo/Seagate/20250529_Adiramled/DVL/Data0017_300414_2/nortek_dvl_bag/nortek_dvl_bag_0.db3",
+#     "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000112_2025_05_29_12_52_07/subsonus_bag/subsonus_bag_0.db3",
+#     "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000113_2025_05_29_15_09_45/subsonus_bag/subsonus_bag_0.db3",
+#     "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000114_2025_05_29_17_23_08/subsonus_bag/subsonus_bag_0.db3",
+#     "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000115_2025_05_29_19_36_18/subsonus_bag/subsonus_bag_0.db3",
+#     "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000116_2025_05_29_21_49_02/subsonus_bag/subsonus_bag_0.db3"
+# ]
+
+# William Elgin
 input_bags = [
-    "/media/bonnaroo/Seagate/20250529_Adiramled/DVL/Data0017_300414/nortek_dvl_bag/nortek_dvl_bag_0.db3",
-    "/media/bonnaroo/Seagate/20250529_Adiramled/DVL/Data0017_300414_2/nortek_dvl_bag/nortek_dvl_bag_0.db3",
-    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000112_2025_05_29_12_52_07/subsonus_bag/subsonus_bag_0.db3",
-    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000113_2025_05_29_15_09_45/subsonus_bag/subsonus_bag_0.db3",
-    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000114_2025_05_29_17_23_08/subsonus_bag/subsonus_bag_0.db3",
-    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000115_2025_05_29_19_36_18/subsonus_bag/subsonus_bag_0.db3",
-    "/media/bonnaroo/Seagate/20250529_Adiramled/Subsonus/ANPP_LOG_000116_2025_05_29_21_49_02/subsonus_bag/subsonus_bag_0.db3"
+    "/media/bonnaroo/Seagate/20250527_William_Elgin/DVL/Data0012_300414/nortek_dvl_bag/nortek_dvl_bag_0.db3",
+    "/media/bonnaroo/Seagate/20250527_William_Elgin/Subsonous/ANPP_LOG_000214_2025_05_27_16_07_33/subsonus_bag/subsonus_bag_0.db3"
 ]
 
-output_bag = "/home/bonnaroo/Desktop/merged_bag_20250529_Adiramled"
+
+output_bag = "/home/bonnaroo/Desktop/merged_bag_20250527_william_elgin.db3"
 
 def merge_rosbags(input_bag_paths, output_bag_path):
     rclpy.init()

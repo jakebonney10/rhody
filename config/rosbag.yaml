@@ -1,0 +1,9 @@
+# filter.yaml
+output_bags:
+- uri: ./filtered_bag         # where the new bag will be written
+  all_topics: false
+  regex: '^/(rhody/nav|utm)/.*'
+  include_hidden_topics: false
+  # optional time window (uncomment if you want)
+  # start_time_ns: 1757706468490598396
+  # end_time_ns:   1757729859732347026

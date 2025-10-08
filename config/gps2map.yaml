@@ -5,6 +5,6 @@
     projected_frame: utm_local
     map_projection: utm
     utm_zone: 18
-    origin_lat: 43.70189943430362 # dive unknown 5: 43.61214232381858     # Replace with your local datum origin latitude
-    origin_lon: -76.3770951834403 # dive unknown 5: -76.55326599612673   # Replace with your local datum origin longitude
+    origin_lat: 43.65610221502007 # adiramled:43.70189943430362 # dive unknown 5: 43.61214232381858     # Replace with your local datum origin latitude
+    origin_lon: -76.40408235755025  # adiramled: -76.3770951834403 # dive unknown 5: -76.55326599612673   # Replace with your local datum origin longitude
     origin_z: 0.0            # Often 0, or you can use seafloor depth reference
