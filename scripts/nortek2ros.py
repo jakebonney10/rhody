@@ -26,8 +26,14 @@ is transformed into the ENU (East-North-Up) frame as required by ROS 2 conventio
 frame_id = "dvl_link"
 namespace = "rhody/nav/sensors/nortek_dvl"
 output_dir = "nortek_dvl_bag"
-start_time  = pd.to_datetime("2025-05-28 12:38:12-04:00")  # EDT is UTC-4
-end_time    = pd.to_datetime("2025-05-28 13:38:12-04:00")
+#start_time  = pd.to_datetime("2025-05-28 12:38:12-04:00")  # EDT is UTC-4
+#end_time    = pd.to_datetime("2025-05-28 13:38:12-04:00")
+# start_time  = pd.to_datetime("2025-05-29 13:05:12-04:00")  # EDT is UTC-4
+# end_time    = pd.to_datetime("2025-05-29 14:05:12-04:00")
+start_time  = pd.to_datetime("2025-05-29 17:47:33-04:00")  # EDT is UTC-4
+end_time    = pd.to_datetime("2025-05-29 18:47:33-04:00")
+start_time = None
+end_time   = None
 
 # NOTE: Conservative estimates for covariances of Bottom Track based off of manual (squared std dev)
 vx_std = 0.006  # Horizontal (X, Y): ±0.3% of velocity ±0.003 m/s
@@ -91,26 +97,27 @@ def ned_quat_to_enu(q_ned_xyzw):
     """Map a quaternion (xyzw) that orients body w.r.t. NED into ENU."""
     return (P_NED_to_ENU * R.from_quat(q_ned_xyzw)).as_quat()
 
+def apply_time_filter(df, start, end, col="dateTime"):
+    if start is not None:
+        df = df[df[col] >= start]
+    if end is not None:
+        df = df[df[col] <= end]
+    return df
 
 def main():
     rclpy.init()
 
-    # Load and filter the CSVs
+    # Load CSVs
     bottom_df = pd.read_csv("Bottom Track.csv", sep=";", parse_dates=["dateTime"])
-    bottom_df = bottom_df[bottom_df["dateTime"] >= start_time]
-    bottom_df = bottom_df[bottom_df["dateTime"] <= end_time]
+    imu_df    = pd.read_csv("IMU.csv", sep=";", parse_dates=["dateTime"])
+    ins_df    = pd.read_csv("INS.csv", sep=";", parse_dates=["dateTime"])
+    mag_df    = pd.read_csv("Magnetometer.csv", sep=";", parse_dates=["dateTime"])
 
-    imu_df = pd.read_csv("IMU.csv", sep=";", parse_dates=["dateTime"])
-    imu_df = imu_df[imu_df["dateTime"] >= start_time]
-    imu_df = imu_df[imu_df["dateTime"] <= end_time]
-
-    ins_df = pd.read_csv("INS.csv", sep=";", parse_dates=["dateTime"])
-    ins_df = ins_df[ins_df["dateTime"] >= start_time]
-    ins_df = ins_df[ins_df["dateTime"] <= end_time]
-
-    mag_df = pd.read_csv("Magnetometer.csv", sep=";", parse_dates=["dateTime"])
-    mag_df = mag_df[mag_df["dateTime"] >= start_time]
-    mag_df = mag_df[mag_df["dateTime"] <= end_time]
+    # Apply optional filtering
+    bottom_df = apply_time_filter(bottom_df, start_time, end_time)
+    imu_df    = apply_time_filter(imu_df,    start_time, end_time)
+    ins_df    = apply_time_filter(ins_df,    start_time, end_time)
+    mag_df    = apply_time_filter(mag_df,    start_time, end_time)
 
     print("✅ Loaded CSV files between cutoff:", start_time, "to", end_time)
 
@@ -165,9 +172,9 @@ def main():
         msg = TwistWithCovarianceStamped()
         msg.header.stamp = t
         msg.header.frame_id = frame_id
-        vel_ned = [row['velocityX'], row['velocityY'], row['velocityZ']]
+        vel_ned = [row['velocityX'], -row['velocityY'], -row['velocityZ']]
         vel_enu = ned_vec_to_enu(vel_ned)
-        msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z = vel_enu
+        msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z = vel_ned
 
         # Add reasonable covariances (example: tight trust in x/y, less in z, don't trust angular so 1e6)
         msg.twist.covariance = [
@@ -187,12 +194,12 @@ def main():
         msg = Imu()
         msg.header.stamp = t
         msg.header.frame_id = frame_id
-        gyro_ned = [row['gyroX'], row['gyroY'], row['gyroZ']]  
+        gyro_ned = [row['gyroX'], -row['gyroY'], -row['gyroZ']]  
         gyro_enu = ned_vec_to_enu(gyro_ned) # Convert NED to ENU
-        msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = gyro_enu
-        acc_ned = [row['accelerometerX'], row['accelerometerY'], row['accelerometerZ']]
+        msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = gyro_ned
+        acc_ned = [row['accelerometerX'], row['accelerometerY'], -row['accelerometerZ']]
         acc_enu = ned_vec_to_enu(acc_ned)
-        msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = acc_enu
+        msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = acc_ned
         msg.orientation_covariance[0] = -1.0  # unknown
         msg.angular_velocity_covariance = imu_ang_vel_cov
         msg.linear_acceleration_covariance = imu_lin_acc_cov
@@ -217,9 +224,9 @@ def main():
         roll_deg   = float(row['ahrsDataRoll'])              # radians (if in deg, convert)
         pitch_deg  = float(row['ahrsDataPitch'])
         heading_deg = float(row['ahrsDataHeading'])      # Nortek AHRS heading is degrees
-        heading = np.deg2rad(heading_deg)
-        roll = np.deg2rad(roll_deg)
-        pitch = np.deg2rad(pitch_deg)
+        roll_rad = np.deg2rad(roll_deg)
+        pitch_rad = np.deg2rad(pitch_deg)
+        heading_rad = np.deg2rad(heading_deg)
         rpy_ned = Vector3Stamped()
         rpy_ned.header.stamp = t
         rpy_ned.header.frame_id = frame_id
@@ -229,8 +236,8 @@ def main():
         writer.write(namespace + '/rpy_ned_deg', serialize_message(rpy_ned), ts)
 
         # Convert to ENU
-        x_enu = pitch_deg
-        y_enu = roll_deg
+        x_enu = roll_deg
+        y_enu = -pitch_deg
         z_enu = (90 - heading_deg) % 360
         q_enu = R.from_euler('xyz', [x_enu, y_enu, z_enu], degrees=True).as_quat()
 
@@ -249,7 +256,7 @@ def main():
         t, ts = make_ros_time(row['dateTime'])
         msg = PoseWithCovarianceStamped()
         msg.header.stamp = t
-        msg.header.frame_id = "base_link"
+        msg.header.frame_id = "utm_local"
 
         # Only set Z = depth (positive down), flip to negative up for ENU
         msg.pose.pose.position.z = -float(row['depth'])  # ENU Z = -NED Depth
@@ -285,7 +292,7 @@ def main():
         mag_ned = np.array([
             float(row['magnetometerX']),
             float(row['magnetometerY']),
-            float(row['magnetometerZ'])
+            -float(row['magnetometerZ'])
         ], dtype=float)
 
         # NED -> ENU
@@ -297,7 +304,7 @@ def main():
         msg = MagneticField()
         msg.header.stamp = t
         msg.header.frame_id = frame_id
-        msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z = mag_enu
+        msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z = mag_ned
         msg.magnetic_field_covariance = mag_cov  # set to zeros if unknown
 
         writer.write(namespace + '/magnetic_field', serialize_message(msg), ts)

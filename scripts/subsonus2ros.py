@@ -86,6 +86,12 @@ def main():
     ))
 
     writer.create_topic(TopicMetadata(
+        name=namespace + '/depth',
+        type='geometry_msgs/msg/PoseWithCovarianceStamped',
+        serialization_format='cdr'
+    ))
+
+    writer.create_topic(TopicMetadata(
         name=namespace + '/ins/fix',
         type='sensor_msgs/msg/NavSatFix',
         serialization_format='cdr'
@@ -101,7 +107,7 @@ def main():
         serialization_format='cdr'
     ))
 
-    # ---- NavSatFix from Remote Track data (accomms fix)
+    # ---- NavSatFix and Depth from Remote Track data (accomms fix)
     for _, row in df_track.iterrows():
         ros_time, timestamp = make_ros_time(row["Unix Time"], row["Microseconds"])
 
@@ -127,6 +133,23 @@ def main():
             continue
 
         writer.write(namespace + '/fix', serialize_message(fix), timestamp)
+
+        # ---- Depth as PoseWithCovarianceStamped
+        depth_msg = PoseWithCovarianceStamped()
+        depth_msg.header.stamp = ros_time
+        depth_msg.header.frame_id = "utm_local"
+        depth_msg.pose.pose.position.z = -row["Remote Depth"]  # Depth is positive down, so negate for ENU
+
+        # Set unknown values for x, y, and orientation
+        depth_msg.pose.covariance = [0.0] * 36
+        depth_msg.pose.covariance[14] = 1.5  # z variance (manual advertises 1.5 m accuracy))
+        depth_msg.pose.covariance[0] = 1.0    # x unused
+        depth_msg.pose.covariance[7] = 1.0    # y unused
+        depth_msg.pose.covariance[21] = 1.0   # roll unused
+        depth_msg.pose.covariance[28] = 1.0   # pitch unused
+        depth_msg.pose.covariance[35] = 1.0   # yaw unused
+
+        writer.write(namespace + '/depth', serialize_message(depth_msg), timestamp)
 
     # ---- NavSatFix, IMU, and Velocity from Remote Subsonus State INS data
     for _, row in df_state.iterrows():
@@ -163,8 +186,8 @@ def main():
         # q_enu = ned_quat_to_enu(q_ned)
         
         # Convert to ENU
-        x_enu = row["Pitch"]
-        y_enu = row["Roll"]
+        x_enu = row["Roll"]
+        y_enu = -row["Pitch"]
         z_enu = (90 - row["Heading"]) % 360
         q_enu = R.from_euler('xyz', [x_enu, y_enu, z_enu], degrees=True).as_quat()
         
@@ -184,8 +207,8 @@ def main():
             continue
 
         angvel_ned = [row["Angular Velocity X"], row["Angular Velocity Y"], row["Angular Velocity Z"]]
-        angvel_enu = ned_vec_to_enu(angvel_ned)
-        imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z = angvel_enu
+        ang_vel_enu = [row["Angular Velocity X"], -row["Angular Velocity Y"], -row["Angular Velocity Z"]]
+        imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z = ang_vel_enu
         ang_sd = np.deg2rad(1.0)  # example placeholder: 1 deg/s SD
         imu.angular_velocity_covariance = [
             ang_sd**2, 0.0,       0.0,
@@ -206,8 +229,9 @@ def main():
         twist.header.frame_id = frame_id
 
         lin_vel_ned = [row["Velocity North"], row["Velocity East"], row["Velocity Down"]]
-        lin_vel_enu = ned_vec_to_enu(lin_vel_ned)
-        ang_vel_enu = ned_vec_to_enu(angvel_ned)
+        #lin_vel_enu = ned_vec_to_enu(lin_vel_ned)
+        lin_vel_enu = [row["Velocity East"], row["Velocity North"], -row["Velocity Down"]]
+        #ang_vel_enu = ned_vec_to_enu(angvel_ned)
 
         twist.twist.twist.linear.x, twist.twist.twist.linear.y, twist.twist.twist.linear.z = lin_vel_enu
         twist.twist.twist.angular.x, twist.twist.twist.angular.y, twist.twist.twist.angular.z = ang_vel_enu
