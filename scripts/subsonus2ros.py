@@ -86,6 +86,12 @@ def main():
     ))
 
     writer.create_topic(TopicMetadata(
+        name=namespace + '/depth',
+        type='geometry_msgs/msg/PoseWithCovarianceStamped',
+        serialization_format='cdr'
+    ))
+
+    writer.create_topic(TopicMetadata(
         name=namespace + '/ins/fix',
         type='sensor_msgs/msg/NavSatFix',
         serialization_format='cdr'
@@ -101,7 +107,7 @@ def main():
         serialization_format='cdr'
     ))
 
-    # ---- NavSatFix from Remote Track data (accomms fix)
+    # ---- NavSatFix and Depth from Remote Track data (accomms fix)
     for _, row in df_track.iterrows():
         ros_time, timestamp = make_ros_time(row["Unix Time"], row["Microseconds"])
 
@@ -127,6 +133,23 @@ def main():
             continue
 
         writer.write(namespace + '/fix', serialize_message(fix), timestamp)
+
+        # ---- Depth as PoseWithCovarianceStamped
+        depth_msg = PoseWithCovarianceStamped()
+        depth_msg.header.stamp = ros_time
+        depth_msg.header.frame_id = "utm_local"
+        depth_msg.pose.pose.position.z = -row["Remote Depth"]  # Depth is positive down, so negate for ENU
+
+        # Set unknown values for x, y, and orientation
+        depth_msg.pose.covariance = [0.0] * 36
+        depth_msg.pose.covariance[14] = 1.5  # z variance (manual advertises 1.5 m accuracy))
+        depth_msg.pose.covariance[0] = 1.0    # x unused
+        depth_msg.pose.covariance[7] = 1.0    # y unused
+        depth_msg.pose.covariance[21] = 1.0   # roll unused
+        depth_msg.pose.covariance[28] = 1.0   # pitch unused
+        depth_msg.pose.covariance[35] = 1.0   # yaw unused
+
+        writer.write(namespace + '/depth', serialize_message(depth_msg), timestamp)
 
     # ---- NavSatFix, IMU, and Velocity from Remote Subsonus State INS data
     for _, row in df_state.iterrows():
