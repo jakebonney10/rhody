@@ -26,10 +26,6 @@ is transformed into the ENU (East-North-Up) frame as required by ROS 2 conventio
 frame_id = "dvl_link"
 namespace = "rhody/nav/sensors/nortek_dvl"
 output_dir = "nortek_dvl_bag"
-#start_time  = pd.to_datetime("2025-05-28 12:38:12-04:00")  # EDT is UTC-4
-#end_time    = pd.to_datetime("2025-05-28 13:38:12-04:00")
-# start_time  = pd.to_datetime("2025-05-29 13:05:12-04:00")  # EDT is UTC-4
-# end_time    = pd.to_datetime("2025-05-29 14:05:12-04:00")
 start_time  = pd.to_datetime("2025-05-29 17:47:33-04:00")  # EDT is UTC-4
 end_time    = pd.to_datetime("2025-05-29 18:47:33-04:00")
 start_time = None
