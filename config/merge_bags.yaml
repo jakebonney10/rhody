@@ -1,0 +1,42 @@
+# merge_bags_config.yaml
+# Configuration file for merge_bags.py
+# Command line arguments will override these settings
+
+# Input options (choose one)
+directory: "/home/bonnaroo/data/rhody_nav/20250529_Adiramled"  # Directory to search for bags
+# bags:  # Specific bag files (uncomment to use)
+#   - "/path/to/bag1.db3"
+#   - "/path/to/bag2.db3"
+
+# Output configuration
+output: "merged_dive_data"
+
+# Time filtering (optional)
+start_time: "2025-05-29 12:00:00-04:00"  # Start time for filtering
+end_time: "2025-05-29 20:00:00-04:00"    # End time for filtering
+
+# Supported time formats:
+# - "2025-05-29 17:47:33-04:00"  (with timezone)
+# - "2025-05-29 17:47:33"        (local time)
+# - "2025-05-29T17:47:33-04:00"  (ISO format)
+# - "2025-05-29"                 (date only - midnight)
+
+# Example configurations for different scenarios:
+
+# Process all bags in a directory:
+# directory: "/media/bonnaroo/Seagate/20250529_Adiramled"
+# output: "adiramled_complete"
+
+# Process specific bags with time filter:
+# bags:
+#   - "/path/to/subsonus_bag.db3"
+#   - "/path/to/nortek_dvl_bag.db3"
+# start_time: "2025-05-29 13:00:00"
+# end_time: "2025-05-29 18:00:00"
+# output: "filtered_dive_segment"
+
+# Process dive data for a specific time window:
+# directory: "/home/bonnaroo/data/rhody_nav/20250520_Unknown_001"
+# start_time: "2025-05-20 21:00:00-04:00"
+# end_time: "2025-05-21 02:00:00-04:00"
+# output: "night_dive_segment"
