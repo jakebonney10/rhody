@@ -1,31 +1,68 @@
 #!/usr/bin/env python3
 """
-tlog_dive_extractor.py
+tlog2ros.py
 
-- Read every *.tlog in a user-chosen folder
-- Keep ATTITUDE rows while depth >= 15 m
-- Build dives ≥ 30 min (max 10 s gap)
-- Write CSV + per-dive depth plots in the parent directory
-- Produce a CSV summary of all segments (kept/dropped) with metrics
-  (no location info) and print it on-screen
+Convert ArduSub .tlog files to ROS2 bag files for underwater vehicle navigation.
+- Extracts IMU data (attitude) from ATTITUDE messages
+- Extracts depth data from pressure sensors as PoseWithCovarianceStamped
+- Extracts temperature data from SCALED_PRESSURE2 messages
+- Creates separate ROS2 bag files per dive in /rhody/nav/sensors/blueos namespace
+- Filters for underwater segments (depth >= 10m, duration >= 10 minutes)
 
-All timestamps are now output in UTC.
+Usage:
+    python3 tlog2ros.py
+    (Interactive prompts for folder and dive location)
 """
 
 from __future__ import annotations
-import csv, sys, re, math
+import csv, sys, re, math, os, shutil
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
+
+import rclpy
+from rclpy.serialization import serialize_message
+from builtin_interfaces.msg import Time
+from geometry_msgs.msg import PoseWithCovarianceStamped, Vector3Stamped
+from sensor_msgs.msg import Imu, Temperature
+from rosbag2_py import SequentialWriter, StorageOptions, ConverterOptions
+from rosbag2_py._storage import TopicMetadata
+from scipy.spatial.transform import Rotation as R
+import numpy as np
 
 import matplotlib.pyplot as plt
 from pymavlink import mavutil  # type: ignore
 
 # ───────── constants ─────────
 DEPTH_MIN   = 10.0       # m
-MIN_DIVE_S  = 600        # s
+MIN_DIVE_S  = 600        # s (10 minutes)
 UTC         = timezone.utc
+
+# ROS2 configuration
+NAMESPACE = "rhody/nav/sensors/blueos"
+FRAME_ID = "blueos_imu_link"
+
+# Covariance estimates for IMU data (conservative estimates)
+IMU_ORIENTATION_COV = [0.01, 0.0, 0.0,    # roll
+                      0.0, 0.01, 0.0,     # pitch  
+                      0.0, 0.0, 0.05]     # yaw (less accurate)
+
+IMU_ANGULAR_VEL_COV = [0.001, 0.0, 0.0,
+                      0.0, 0.001, 0.0,
+                      0.0, 0.0, 0.001]
+
+IMU_LINEAR_ACC_COV = [0.1, 0.0, 0.0,
+                     0.0, 0.1, 0.0,
+                     0.0, 0.0, 0.1]
+
+# Depth covariance (pressure sensor accuracy)
+DEPTH_COV = [1e6, 0.0, 0.0, 0.0, 0.0, 0.0,    # x (unused)
+            0.0, 1e6, 0.0, 0.0, 0.0, 0.0,     # y (unused)
+            0.0, 0.0, 0.25, 0.0, 0.0, 0.0,    # z (depth) - 0.5m std dev
+            0.0, 0.0, 0.0, 1e6, 0.0, 0.0,     # roll (unused)
+            0.0, 0.0, 0.0, 0.0, 1e6, 0.0,     # pitch (unused)
+            0.0, 0.0, 0.0, 0.0, 0.0, 1e6]     # yaw (unused)
 
 def sanitize(tag: str) -> str:
     clean = re.sub(r"[^A-Za-z0-9]", "", tag)
@@ -35,6 +72,142 @@ def sanitize(tag: str) -> str:
 
 def iso_utc(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+def make_ros_time(epoch_time: float) -> tuple[Time, int]:
+    """Convert epoch time to ROS Time message and nanosecond timestamp."""
+    sec = int(epoch_time)
+    nanosec = int((epoch_time - sec) * 1e9)
+    t = Time()
+    t.sec = sec
+    t.nanosec = nanosec
+    return t, sec * int(1e9) + nanosec
+
+def euler_to_quaternion(roll: float, pitch: float, yaw: float) -> tuple[float, float, float, float]:
+    """Convert Euler angles (radians) to quaternion (x, y, z, w)."""
+    r = R.from_euler('xyz', [roll, pitch, yaw])
+    return tuple(r.as_quat())
+
+def create_imu_message(epoch_time: float, roll: float, pitch: float, yaw: float) -> Imu:
+    """Create IMU message from attitude data."""
+    ros_time, _ = make_ros_time(epoch_time)
+    
+    msg = Imu()
+    msg.header.stamp = ros_time
+    msg.header.frame_id = FRAME_ID
+    
+    # Convert degrees to radians
+    roll_rad = math.radians(roll)
+    pitch_rad = math.radians(pitch)
+    yaw_rad = math.radians(yaw)
+    
+    # Set orientation from Euler angles
+    qx, qy, qz, qw = euler_to_quaternion(roll_rad, pitch_rad, yaw_rad)
+    msg.orientation.x = qx
+    msg.orientation.y = qy
+    msg.orientation.z = qz
+    msg.orientation.w = qw
+    
+    # Set covariances (no angular velocity or linear acceleration from ArduSub attitude)
+    msg.orientation_covariance = IMU_ORIENTATION_COV
+    msg.angular_velocity_covariance[0] = -1.0  # Mark as unknown
+    msg.linear_acceleration_covariance[0] = -1.0  # Mark as unknown
+    
+    return msg
+
+def create_depth_message(epoch_time: float, depth: float) -> PoseWithCovarianceStamped:
+    """Create depth message as PoseWithCovarianceStamped."""
+    ros_time, _ = make_ros_time(epoch_time)
+    
+    msg = PoseWithCovarianceStamped()
+    msg.header.stamp = ros_time
+    msg.header.frame_id = "utm_local"  # Global reference frame
+    
+    # Set depth as negative Z (ENU convention: positive Z is up)
+    msg.pose.pose.position.x = 0.0  # Unknown horizontal position
+    msg.pose.pose.position.y = 0.0  # Unknown horizontal position
+    msg.pose.pose.position.z = -depth  # Depth as negative Z
+    
+    # Identity quaternion for orientation (unknown)
+    msg.pose.pose.orientation.x = 0.0
+    msg.pose.pose.orientation.y = 0.0
+    msg.pose.pose.orientation.z = 0.0
+    msg.pose.pose.orientation.w = 1.0
+    
+    # Set covariance
+    msg.pose.covariance = DEPTH_COV
+    
+    return msg
+
+def create_temperature_message(epoch_time: float, temp_celsius: float) -> Temperature:
+    """Create temperature message."""
+    ros_time, _ = make_ros_time(epoch_time)
+    
+    msg = Temperature()
+    msg.header.stamp = ros_time
+    msg.header.frame_id = FRAME_ID
+    msg.temperature = temp_celsius
+    msg.variance = 1.0  # 1°C variance estimate
+    
+    return msg
+
+def create_rosbag_for_dive(dive_data: List[Dict], dive_id: int, output_dir: Path) -> None:
+    """Create a ROS2 bag file for a single dive."""
+    rclpy.init()
+    
+    # Create bag directory name
+    dive_label = f"blueos_dive_{dive_id:03d}"
+    bag_dir = output_dir / f"{dive_label}_bag"
+    
+    if bag_dir.exists():
+        shutil.rmtree(bag_dir)
+    
+    writer = SequentialWriter()
+    writer.open(
+        StorageOptions(uri=str(bag_dir), storage_id='sqlite3'),
+        ConverterOptions(input_serialization_format='cdr', output_serialization_format='cdr')
+    )
+    
+    # Create topics
+    topics = [
+        (f"{NAMESPACE}/imu", 'sensor_msgs/msg/Imu'),
+        (f"{NAMESPACE}/depth", 'geometry_msgs/msg/PoseWithCovarianceStamped'),
+        (f"{NAMESPACE}/temperature", 'sensor_msgs/msg/Temperature')
+    ]
+    
+    for topic_name, topic_type in topics:
+        writer.create_topic(TopicMetadata(
+            name=topic_name,
+            type=topic_type,
+            serialization_format='cdr'
+        ))
+    
+    print(f"🔄 Creating ROS2 bag for dive {dive_id} with {len(dive_data)} messages...")
+    
+    # Process each data point
+    for data_point in dive_data:
+        epoch_time = data_point["unix_time_us"] / 1e6
+        _, timestamp_ns = make_ros_time(epoch_time)
+        
+        # Create and write IMU message
+        imu_msg = create_imu_message(
+            epoch_time,
+            data_point["roll_deg"],
+            data_point["pitch_deg"], 
+            data_point["heading_deg"]
+        )
+        writer.write(f"{NAMESPACE}/imu", serialize_message(imu_msg), timestamp_ns)
+        
+        # Create and write depth message
+        depth_msg = create_depth_message(epoch_time, data_point["depth_m"])
+        writer.write(f"{NAMESPACE}/depth", serialize_message(depth_msg), timestamp_ns)
+        
+        # Create and write temperature message (if available)
+        if data_point["water_temp_c"] is not None:
+            temp_msg = create_temperature_message(epoch_time, data_point["water_temp_c"])
+            writer.write(f"{NAMESPACE}/temperature", serialize_message(temp_msg), timestamp_ns)
+    
+    rclpy.shutdown()
+    print(f"✅ ROS2 bag created: {bag_dir}")
 
 def boot_offset(tlog: Path) -> float | None:
     m = mavutil.mavlink_connection(str(tlog))
@@ -158,7 +331,7 @@ def main() -> None:
             rows_kept = len(seg)
             mean_dep = mean(depths)
             max_dep = max(depths)
-            dive_label = f"LONMS_{dive_id:03d}"
+            dive_label = f"BLUEOS_DIVE_{dive_id:03d}"
         else:
             status = "dropped"
             rows_kept = 0
@@ -209,11 +382,27 @@ def main() -> None:
         w.writerows(kept_rows)
     print(f"Kept rows CSV written to: {kept_csv}")
 
-    # per-dive depth plots
+    # create ROS2 bags for each dive
     by_dive = defaultdict(list)
     for r in kept_rows:
         by_dive[r["dive_num"]].append(r)
 
+    print(f"\n🚀 Creating ROS2 bag files...")
+    ros_output_dir = folder.parent / "ros"
+    ros_output_dir.mkdir(exist_ok=True)
+    
+    for dive_id, dive_data in by_dive.items():
+        create_rosbag_for_dive(dive_data, dive_id, ros_output_dir)
+
+    print(f"\n📊 Summary:")
+    print(f"   Total dives processed: {len(by_dive)}")
+    print(f"   ROS2 bags created in: {ros_output_dir}")
+    print(f"   Topics per bag:")
+    print(f"     - {NAMESPACE}/imu (sensor_msgs/msg/Imu)")
+    print(f"     - {NAMESPACE}/depth (geometry_msgs/msg/PoseWithCovarianceStamped)")
+    print(f"     - {NAMESPACE}/temperature (sensor_msgs/msg/Temperature)")
+
+    # per-dive depth plots
     for did, sub in by_dive.items():
         times = [datetime.fromtimestamp(r["unix_time_us"]/1e6, tz=UTC) for r in sub]
         deps  = [r["depth_m"] for r in sub]
@@ -221,7 +410,7 @@ def main() -> None:
         dur_min   = (times[-1] - t0).total_seconds() / 60
         date_str  = t0.strftime("%Y%m%d")      # for filename
         date_label= t0.strftime("%Y-%m-%d")    # for title
-        label     = f"LONMS_{did:03d}"
+        label     = f"BLUEOS_DIVE_{did:03d}"
 
         plt.figure()
         plt.plot(times, deps)
@@ -235,7 +424,7 @@ def main() -> None:
         plt.savefig(outfn, dpi=150)
         plt.close()
 
-    print("Depth plots saved to parent folder as LONMS_###_YYYYMMDD_depth.png")
+    print(f"\n📈 Depth plots saved as BLUEOS_DIVE_###_YYYYMMDD_depth.png")
 
 if __name__ == "__main__":
     main()
