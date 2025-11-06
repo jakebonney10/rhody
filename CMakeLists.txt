@@ -103,6 +103,7 @@ ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR python/${PROJECT_NAME})
 install(PROGRAMS
   python/gps2map.py
   python/pressure2depth.py
+  python/set_pose_on_cov.py
   DESTINATION lib/${PROJECT_NAME})
 
 #############

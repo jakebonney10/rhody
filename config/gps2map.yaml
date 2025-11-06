@@ -1,15 +1,22 @@
 /**:
   ros__parameters:
-    position_topic: sensors/subsonus_usbl/ins/fix
+    # Legacy single position_topic (use position_topics for multiple)
+    # position_topic: sensors/subsonus_usbl/ins/fix
+    
+    # New: support multiple position topics with separate outputs
+    position_topics: 
+      - sensors/subsonus_usbl/ins/fix
+      - sensors/subsonus_usbl/fix
+    
     topics: ["sensors/subsonus_usbl/ins/fix"] # Use empty list to subscribe to all IMU/NavSatFix topics
     projected_frame: utm_local
     map_projection: utm
     utm_zone: 18
-    origin_lat: 43.37736194243695 # queen of the lakes
-    origin_lon: -76.8564475208586 # queen of the lakes
+    # origin_lat: 43.37736194243695 # queen of the lakes
+    # origin_lon: -76.8564475208586 # queen of the lakes
     # origin_lat: 43.6623689433881 # black duck
     # origin_lon: -76.40400140183587 # black duck
-    # origin_lat: 43.69906135808786 # unknoown004
+    # origin_lat: 43.69906135808786 # unknown004
     # origin_lon: -76.45425171401314 # unknown004
     # origin_lat: 43.6561293308575 # william elgin
     # origin_lon: -76.40402064670958 # william elgin
@@ -19,8 +26,8 @@
     # origin_lon: -76.37934660903656 #unknown006
     # origin_lat:  43.80189479090809 # adiramled 
     # origin_lon: -76.41144535388662 # adiramled 
-    # origin_lat: 43.70198733814545 # unknown007
-    # origin_lon: -76.37885868154028 # unknown007
+    origin_lat: 43.70198733814545 # unknown007
+    origin_lon: -76.37885868154028 # unknown007
     # origin_lat: 43.8432271566922 # onandanga
     # origin_lon: -76.3282723609382 # onandanga
     # origin_lat: 43.53286064009623 # phillip becker

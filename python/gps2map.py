@@ -21,13 +21,15 @@ class TransformPoseNode(Node):
         self.subscribers_ = {}
         # self.proj_publishers = {}
         self.imu_publishers = {}
-        self.last_gps = None
+        self.last_gps = {}  # Changed to dict to track multiple position topics
 
         self.tf_broadcaster = TransformBroadcaster(self)
         self.tf_static_broadcaster = StaticTransformBroadcaster(self)
 
         self.topics = self.declare_parameter('topics', rclpy.Parameter.Type.STRING_ARRAY).value
+        # Support both single position_topic (legacy) and multiple position_topics
         self.position_topic = self.declare_parameter('position_topic', '').value
+        self.position_topics = self.declare_parameter('position_topics', rclpy.Parameter.Type.STRING_ARRAY).value
         self.projected_frame = self.declare_parameter('projected_frame', 'utm_local').value
         self.map_projection = self.declare_parameter('map_projection', 'utm').value  # 'utm' or 'ecef'
 
@@ -45,12 +47,14 @@ class TransformPoseNode(Node):
         self.create_timer(1.0, self.update_subscribers)
 
     def params_ready(self):
+        has_position_topics = (self.position_topic != '' or 
+                              (self.position_topics and len(self.position_topics) > 0))
         return all([
             self.has_parameter('utm_zone'),
             self.has_parameter('origin_lon'),
             self.has_parameter('origin_lat'),
             self.has_parameter('origin_z'),
-            self.position_topic != ''
+            has_position_topics
         ])
 
     def compute_projection(self):
@@ -88,18 +92,31 @@ class TransformPoseNode(Node):
         if not hasattr(self, 'proj'):
             self.compute_projection()
 
-        if 'pos_sub' not in self.subscribers_:
-            self.subscribers_['pos_sub'] = self.create_subscription(
-                NavSatFix, self.position_topic, self.position_navsat_callback, self.sensor_qos)
+        # Build list of all position topics to handle
+        all_position_topics = []
+        if self.position_topic:
+            all_position_topics.append(self.position_topic)
+        if self.position_topics:
+            all_position_topics.extend(self.position_topics)
 
-        resolved = self.resolve_topic_name(self.position_topic)
-        if resolved not in self.publishers_:
-            self.get_logger().info(f"Manually creating publisher for position_topic: /utm{resolved}")
-            self.publishers_[resolved] = self.create_publisher(
-                PoseWithCovarianceStamped,
-                f"/utm{resolved}",
-                10
-            )
+        # Subscribe to all specified position topics
+        for pos_topic in all_position_topics:
+            sub_key = f'pos_sub_{pos_topic}'
+            if sub_key not in self.subscribers_:
+                self.get_logger().info(f"Subscribing to position topic: {pos_topic}")
+                self.subscribers_[sub_key] = self.create_subscription(
+                    NavSatFix, pos_topic, 
+                    lambda msg, t=pos_topic: self.position_navsat_callback(msg, t), 
+                    self.sensor_qos)
+
+            resolved = self.resolve_topic_name(pos_topic)
+            if resolved not in self.publishers_:
+                self.get_logger().info(f"Creating publisher for position_topic: /utm{resolved}")
+                self.publishers_[resolved] = self.create_publisher(
+                    PoseWithCovarianceStamped,
+                    f"/utm{resolved}",
+                    10
+                )
 
         topic_list = self.get_topic_names_and_types()
         for topic_name, types in topic_list:
@@ -130,26 +147,32 @@ class TransformPoseNode(Node):
                 self.imu_publishers_[resolved] = self.create_publisher(Imu, f"/utm{resolved}", 10)
                 # self.proj_publishers[topic_name] = self.create_publisher(ProjectionInfo, f"/utm{topic_name}/proj", 10)
 
-    def position_navsat_callback(self, msg):
-        self.last_gps = msg
-        self.gps_callback(msg, self.position_topic)
+    def position_navsat_callback(self, msg, topic):
+        """Store latest GPS for this specific topic and process it."""
+        self.last_gps[topic] = msg
+        self.gps_callback(msg, topic)
 
     def compute_convergence_angle(self, lon, lat):
         utm_center = self.utm_zone * 6 - 180 - 3
         return math.radians((lon - utm_center) * math.sin(math.radians(lat)))
 
     def imu_callback(self, msg, topic):
-        if self.last_gps is None:
+        # Find the most recent GPS message from any position topic
+        if not self.last_gps:
             return
 
-        time_diff = (msg.header.stamp.sec - self.last_gps.header.stamp.sec)
+        # Use the most recently updated GPS message
+        last_gps_msg = max(self.last_gps.values(), 
+                          key=lambda gps: gps.header.stamp.sec * 1e9 + gps.header.stamp.nanosec)
+
+        time_diff = (msg.header.stamp.sec - last_gps_msg.header.stamp.sec)
         if time_diff > 5:
             self.get_logger().warn("IMU and GPS timestamps differ by more than 5s")
             return
 
         try:
             convergence_angle = self.compute_convergence_angle(
-                self.last_gps.longitude, self.last_gps.latitude)
+                last_gps_msg.longitude, last_gps_msg.latitude)
         except Exception as e:
             self.get_logger().warn(f"Convergence angle computation failed: {e}")
             return
