@@ -1,0 +1,72 @@
+/**:
+  ros__parameters:
+    # Connection configuration for BlueROV (via companion computer)
+    fcu_url: "udp://:14550@"
+    fcu_protocol: "v2.0"
+    system_id: 1
+    component_id: 1
+    target_system_id: 1
+    target_component_id: 1
+    
+    # Frame IDs
+    local_frame:
+      frame_id: "map"
+      tf:
+        send: false
+        frame_id: "map"
+        child_frame_id: "base_link"
+        rate_limit: 10.0
+    
+    # IMU Configuration
+    imu:
+      frame_id: "base_link"
+      linear_acceleration_stdev: 0.0003
+      angular_velocity_stdev: 0.0003490659
+      orientation_stdev: 1.0
+      magnetic_stdev: 0.0
+    
+    # System plugins
+    conn:
+      heartbeat_rate: 1.0
+      timeout: 10.0
+      timesync_rate: 10.0
+      system_time_rate: 1.0
+    
+    sys:
+      min_voltage: 10.0
+      disable_diag: false
+    
+    # Enable plugins for BlueROV
+    plugin_allowlist:
+      - actuator_control
+      - command
+      - imu
+      - local_position
+      - manual_control
+      - param
+      - rc_io
+      - setpoint_attitude
+      - setpoint_position
+      - setpoint_velocity
+      - sys_status
+      - sys_time
+    
+    # Plugin-specific configurations
+    setpoint_position:
+      tf:
+        listen: false
+        frame_id: "map"
+        child_frame_id: "target_position"
+        rate_limit: 50.0
+      mav_frame: LOCAL_NED
+    
+    setpoint_velocity:
+      mav_frame: LOCAL_NED
+    
+    rc_io:
+      # RC channel override
+      raw_rc_in: true
+    
+    # Use MAVLink protocol for safety
+    setpoint_raw:
+      thrust_scaling: 1.0
