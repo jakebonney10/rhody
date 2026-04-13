@@ -7,6 +7,8 @@ cmake_minimum_required(VERSION 3.8)
 set(ROS_DEPENDS
     ament_cmake
     rclcpp
+  rs_msgs
+  sensor_msgs
     std_msgs
   )
 
@@ -103,7 +105,6 @@ ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR python/${PROJECT_NAME})
 install(PROGRAMS
   python/gps2map.py
   python/pressure2depth.py
-  python/set_pose_on_cov.py
   DESTINATION lib/${PROJECT_NAME})
 
 #############

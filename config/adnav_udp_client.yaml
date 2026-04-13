@@ -8,19 +8,19 @@ adnav_node:
 
     # What method will be used to connect to the device. 
     # 0: Serial, 1/2: TCP Client/Server, 3: UDP, 4: CAN (N/A)
-    comm_select: 3
+    comm_select: 1
 
     ################ Serial Communication Parameters
     # Supported Baud Rates: 2.4K, 4.8K, 9.6K, 19.2K, 38.4K, 57.6K.
     # 115.2K, 230.4K, 460.8K, 500K, 576K, 921.6K, 1M, 2M
-    baud_rate: 0
+    baud_rate: 1152
     com_port: ""
 
     ################ IP Communication Parameters
     # IP of the Advanced Navigation Device. 
-    ip_address: "" # only required if comm_select = 1
-    # Port to communicate over. 
-    port: 16721
+    ip_address: "192.168.2.203" # only required if comm_select = 1
+    # Port to communicate over.
+    port: 16718
 
     # This is the minimum period for reading and publishing data.
     # Warning on some systems this is performance limited.  

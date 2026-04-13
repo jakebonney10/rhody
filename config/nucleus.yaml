@@ -1,0 +1,39 @@
+/**:
+  ros__parameters:
+    # --- Connection Parameters ---
+    connection_type: 'tcp'
+
+    # --- TCP Connection Settings ---
+    tcp_ip: '192.168.2.201'
+    tcp_password: 'nortek'
+
+    # --- Serial Connection Settings (unused) ---
+    serial_port: '/dev/ttyUSB0'
+
+    # --- Frame ID ---
+    frame_id: 'nucleus_dvl'
+    world_frame_id: 'world'
+
+    # --- Automatic Control ---
+    auto_connect: true
+    auto_start: true
+
+    # --- Sensor Configuration Commands ---
+    sensor_configs:
+      # IMU
+      - 'SETIMU,DS="OFF"'
+      # AHRS
+      - 'SETAHRS,FREQ=1,MODE=0,DS="OFF"'
+      # Nav
+      - 'SETNAV,DS="OFF"'
+      # Bottom Track
+      - 'SETBT,MODE="FAST_ACQ",WT="ON",PLMODE="MAX"'
+      # Altimeter
+      - 'SETALTI,PL=0'
+      # Mission
+      - 'SETMISSION,RANGE=25,SV=0'
+      # Trigger and Frequency
+      - 'SETTRIG,SRC="INTERNAL",FREQ=5,ALTI=5,CP=0'
+
+    # Fluid Density
+    fluid_density: 1000.0

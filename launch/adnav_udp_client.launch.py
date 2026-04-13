@@ -7,7 +7,7 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     config = os.path.join(
-        get_package_share_directory('adnav_launch'),
+        get_package_share_directory('rhody'),
         'config',
         'adnav_udp_client.yaml'
         )
