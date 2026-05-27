@@ -1,0 +1,32 @@
+/**:
+  ros__parameters:
+    # --- Connection Parameters ---
+    connection_type: 'tcp'
+
+    # --- TCP Connection Settings ---
+    # Port 9002 is the Nucleus read-only streaming port: no login, no commands.
+    # The device is configured and started/stopped externally (e.g. via the
+    # Nortek software on the command port 9000). This node only listens and
+    # parses whatever packets the device is currently streaming.
+    tcp_ip: '192.168.2.201'
+    tcp_port: 9002
+    tcp_password: 'nortek'
+
+    # --- Serial Connection Settings (unused) ---
+    serial_port: '/dev/ttyUSB0'
+
+    # --- Frame ID ---
+    frame_id: 'nucleus_dvl'
+    world_frame_id: 'world'
+
+    # --- Automatic Control ---
+    # Connect on startup, but never start measurement (read-only stream).
+    auto_connect: true
+    auto_start: false
+
+    # --- Sensor Configuration Commands ---
+    # Empty: configuration is owned by the external client on the command port.
+    sensor_configs: []
+
+    # Fluid Density (used only for pressure -> depth conversion of incoming data)
+    fluid_density: 1000.0

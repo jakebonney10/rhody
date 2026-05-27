@@ -21,9 +21,9 @@
     # --- Sensor Configuration Commands ---
     sensor_configs:
       # IMU
-      - 'SETIMU,DS="OFF"'
+      - 'SETIMU,DS="ON"'
       # AHRS
-      - 'SETAHRS,FREQ=1,MODE=0,DS="OFF"'
+      - 'SETAHRS,FREQ=1,MODE=0,DS="ON"'
       # Nav
       - 'SETNAV,DS="OFF"'
       # Bottom Track

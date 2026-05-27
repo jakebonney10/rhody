@@ -1,0 +1,27 @@
+# Voyis Discovery stereo driver — rhody deployment.
+# Loaded by launch/voyis.launch.py. The node runs in the 'rhody' namespace, so
+# the relative topic names below resolve under /rhody (e.g. /rhody/stereo/points).
+# The /** wildcard matches the node regardless of its fully-qualified name.
+/**:
+    ros__parameters:
+        # Path to VoyisQos.xml — required by the Voyis SDK DDS transport.
+        # Empty = use the copy bundled in voyis_discovery_driver's share dir.
+        qos_file: ""
+
+        # DDS domain ID (default 42 per Voyis SDK docs)
+        dds_domain: 42
+
+        # Target camera serial ID. Leave empty to connect to the first detected device.
+        serial_id: ""
+
+        # Requested data streaming rate in Hz
+        publish_rate_hz: 10.0
+
+        topics:
+            left_image:  "stereo/left/image_raw/compressed"
+            right_image: "stereo/right/image_raw/compressed"
+            left_info:   "stereo/left/camera_info"
+            right_info:  "stereo/right/camera_info"
+            disparity:   "stereo/disparity"
+            point_cloud: "stereo/points"
+            imu:         "imu/data_raw"
