@@ -25,7 +25,7 @@
       # AHRS
       - 'SETAHRS,FREQ=1,MODE=0,DS="ON"'
       # Nav
-      - 'SETNAV,DS="OFF"'
+      - 'SETNAV,DS="ON"'
       # Bottom Track
       - 'SETBT,MODE="FAST_ACQ",WT="ON",PLMODE="MAX"'
       # Altimeter
