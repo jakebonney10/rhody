@@ -14,6 +14,7 @@ def generate_launch_description():
 
     node=Node(
         name = 'adnav_node',
+        namespace = 'rhody',
         package = 'adnav_driver',
         executable = 'adnav_driver',
         emulate_tty = True,
