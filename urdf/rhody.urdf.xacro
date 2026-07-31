@@ -5,13 +5,25 @@
   <xacro:property name="namespace" value="$(arg namespace)" scope="global" />
   <xacro:property name="deg" value="${pi / 180.0}" />
 
+  <!-- base_link follows REP-103: x forward, y port, z up.
+       The CAD offsets these links came from use y starboard, so all y values
+       below are negated with respect to the CAD numbers. -->
+
+  <!-- STL carries no color, so give the link an explicit material.
+       Without one RViz renders the mesh red. -->
+  <material name="rhody_grey">
+    <color rgba="0.75 0.75 0.78 1.0"/>
+  </material>
+
   <!-- Base Link -->
   <link name="base_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://rhody/meshes/rhody.dae"/>
+        <!-- Exported in meters, already x-forward / y-port / z-up -->
+        <mesh filename="package://rhody/meshes/JM00004388_decimated.STL"/>
       </geometry>
+      <material name="rhody_grey"/>
     </visual>
   </link>
 
@@ -28,7 +40,7 @@
   <joint name="base_to_usbl" type="fixed">
     <parent link="base_link"/>
     <child link="usbl_link"/>
-    <origin xyz="0.013 0.050 0.385" rpy="0 0 0"/>
+    <origin xyz="0.013 -0.050 0.385" rpy="0 0 0"/>
   </joint>
 
   <!-- FLS -->
@@ -36,23 +48,35 @@
   <joint name="base_to_fls" type="fixed">
     <parent link="base_link"/>
     <child link="fls_link"/>
-    <origin xyz="0.338 0.050 0.281" rpy="0 ${5.0 * deg} 0"/>
+    <origin xyz="0.338 -0.050 0.281" rpy="0 ${5.0 * deg} 0"/>
   </joint>
 
-  <!-- Voyis Stereo: Left Entrance Pupil -->
+  <!-- Camera optical frame: z forward, x right, y down (REP-103 / ISAAC ROS) -->
+  <xacro:macro name="optical_frame" params="name parent">
+    <link name="${name}"/>
+    <joint name="${parent}_to_${name}" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+      <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- Voyis Stereo: Left Entrance Pupil (port side) -->
   <link name="voyis_left_link"/>
   <joint name="base_to_voyis_left" type="fixed">
     <parent link="base_link"/>
     <child link="voyis_left_link"/>
-    <origin xyz="0.323 -0.035 -0.008" rpy="0 0 0"/>
+    <origin xyz="0.323 0.035 -0.008" rpy="0 0 0"/>
   </joint>
+  <xacro:optical_frame name="voyis_left_optical_frame" parent="voyis_left_link"/>
 
-  <!-- Voyis Stereo: Right Entrance Pupil -->
+  <!-- Voyis Stereo: Right Entrance Pupil (starboard side) -->
   <link name="voyis_right_link"/>
   <joint name="base_to_voyis_right" type="fixed">
     <parent link="base_link"/>
     <child link="voyis_right_link"/>
-    <origin xyz="0.323 0.135 -0.008" rpy="0 0 0"/>
+    <origin xyz="0.323 -0.135 -0.008" rpy="0 0 0"/>
   </joint>
+  <xacro:optical_frame name="voyis_right_optical_frame" parent="voyis_right_link"/>
 
 </robot>
