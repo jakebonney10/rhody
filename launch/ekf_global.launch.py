@@ -10,7 +10,7 @@ def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(package='rhody').find('rhody')
     default_namespace = 'rhody/nav'
     ekf_config = 'config/ekf_global.yaml'
-    default_model_path = os.path.join(pkg_share, 'urdf/rhody2.urdf')
+    default_model_path = os.path.join(pkg_share, 'urdf/rhody2.urdf.xacro')
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/ekf_global.rviz')
 
     # Include gps2map launch file

@@ -20,7 +20,6 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <!-- Exported in meters, already x-forward / y-port / z-up -->
         <mesh filename="package://rhody/meshes/JM00004388_decimated.STL"/>
       </geometry>
       <material name="rhody_grey"/>

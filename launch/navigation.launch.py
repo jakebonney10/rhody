@@ -7,7 +7,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(package='rhody').find('rhody')
     default_namespace = 'rhody/nav'
-    default_model_path = os.path.join(pkg_share, 'urdf/rhody2.urdf')
+    default_model_path = os.path.join(pkg_share, 'urdf/rhody2.urdf.xacro')
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     world_path=os.path.join(pkg_share, 'world/my_world.sdf')
     ekf_config = 'config/ekf_local.yaml'

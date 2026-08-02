@@ -1,0 +1,91 @@
+<?xml version="1.0" ?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="rhody2">
+
+  <xacro:arg name="namespace" default="rhody" />
+  <xacro:property name="namespace" value="$(arg namespace)" scope="global" />
+  <xacro:property name="deg" value="${pi / 180.0}" />
+
+  <!-- base_link follows REP-103: x forward, y port, z up. -->
+
+  <!-- Base Link -->
+  <link name="base_link">
+    <!-- rhody2.dae is converted from rhody2.glb (Blender export) with assimp;
+         Humble's RViz segfaults loading .glb directly, so keep the Collada. -->
+    <visual>
+      <!-- The export is Y-up (Blender glTF conversion baked into the root
+           node); -90 deg about X brings it back to REP-103 z-up. -->
+      <origin xyz="0 0 0" rpy="${-pi/2} 0 0"/>
+      <geometry>
+        <mesh filename="package://rhody/meshes/rhody2.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <!-- DVL Link: base_link origin is at the DVL (as on Rhody 1) -->
+  <link name="dvl_link"/>
+  <joint name="base_to_dvl" type="fixed">
+    <parent link="base_link"/>
+    <child link="dvl_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- USBL: measured in Shapr3D from USBL to DVL:
+       dX 3.0246 in, dZ 12.1969 in (0.0768, 0.3098 m). On the vehicle
+       centerline (y = 0), on top of the vehicle, aft of the DVL. -->
+  <link name="usbl_link"/>
+  <joint name="base_to_usbl" type="fixed">
+    <parent link="base_link"/>
+    <child link="usbl_link"/>
+    <origin xyz="-0.0768 0 0.3098" rpy="0 0 0"/>
+  </joint>
+
+  <!-- FLS (Gemini): measured in Shapr3D from sonar to DVL:
+       dX 14.9247 in, dY 6.0827 in, dZ 8.7819 in (0.3791, 0.1545, 0.2231 m).
+       Forward of the DVL, port of centerline, above the DVL.
+       5 deg down pitch. -->
+  <link name="fls_link"/>
+  <joint name="base_to_fls" type="fixed">
+    <parent link="base_link"/>
+    <child link="fls_link"/>
+    <origin xyz="0.3791 0.1545 0.2231" rpy="0 ${5.0 * deg} 0"/>
+  </joint>
+
+  <!-- Camera optical frame: z forward, x right, y down (REP-103 / ISAAC ROS) -->
+  <xacro:macro name="optical_frame" params="name parent">
+    <link name="${name}"/>
+    <joint name="${parent}_to_${name}" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+      <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- Voyis Stereo: measured in Shapr3D from left camera to DVL:
+       dX 12.0228 in, dZ 3.5748 in (0.3054, 0.0908 m). The stereo pair is
+       centered on the vehicle centerline, so each camera sits at
+       +/- baseline/2 in y. voyis_baseline must match the factory stereo
+       calibration (SDK ExtrinsicCalibrationData_t::stereo_baseline; dump it
+       with SaveCalibrationDataApp). -->
+  <xacro:property name="voyis_baseline" value="0.160"/>
+  <xacro:property name="voyis_x" value="0.3054"/>
+  <xacro:property name="voyis_z" value="0.0908"/>
+
+  <!-- Voyis Stereo: Left Entrance Pupil (port side) -->
+  <link name="voyis_left_link"/>
+  <joint name="base_to_voyis_left" type="fixed">
+    <parent link="base_link"/>
+    <child link="voyis_left_link"/>
+    <origin xyz="${voyis_x} ${voyis_baseline/2} ${voyis_z}" rpy="0 0 0"/>
+  </joint>
+  <xacro:optical_frame name="voyis_left_optical_frame" parent="voyis_left_link"/>
+
+  <!-- Voyis Stereo: Right Entrance Pupil (starboard side) -->
+  <link name="voyis_right_link"/>
+  <joint name="base_to_voyis_right" type="fixed">
+    <parent link="base_link"/>
+    <child link="voyis_right_link"/>
+    <origin xyz="${voyis_x} ${-voyis_baseline/2} ${voyis_z}" rpy="0 0 0"/>
+  </joint>
+  <xacro:optical_frame name="voyis_right_optical_frame" parent="voyis_right_link"/>
+
+</robot>
