@@ -25,3 +25,11 @@
             disparity:   "stereo/disparity"
             point_cloud: "stereo/points"
             imu:         "imu/data_raw"
+
+        # TF frame ids for published data. Must match the camera links in the
+        # vehicle URDF (rhody2.urdf.xacro) so the point cloud (stamped in the
+        # left optical frame) attaches to the vehicle via TF.
+        frames:
+            left_optical:  "voyis_left_optical"
+            right_optical: "voyis_right_optical"
+            imu:           "voyis_imu"

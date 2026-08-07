@@ -4,9 +4,11 @@
 Launch file for the Voyis Discovery stereo driver in the rhody namespace.
 
 Runs the driver under the 'rhody' namespace, so its topics resolve under /rhody
-(e.g. /rhody/stereo/points, /rhody/stereo/disparity). Also broadcasts a static
-transform map -> stereo_left_optical so the point cloud (published in the
-stereo_left_optical frame) is visible in RViz with Fixed Frame = map.
+(e.g. /rhody/stereo/points, /rhody/stereo/disparity). Data is stamped in the
+voyis_left_optical / voyis_right_optical frames (config/voyis.yaml), which the
+vehicle URDF publishes — run rhody_description.launch.py (or any launch that
+starts robot_state_publisher) alongside so the point cloud attaches to the
+vehicle through TF.
 """
 
 import os
@@ -43,20 +45,7 @@ def generate_launch_description():
         ]
     )
 
-    # Static transform so RViz (Fixed Frame = map) can place the cloud, which the
-    # driver stamps in the stereo_left_optical frame. Left un-namespaced so it
-    # broadcasts on the global /tf_static topic.
-    # Args: x y z yaw pitch roll parent_frame child_frame
-    static_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='voyis_static_tf',
-        output='screen',
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'stereo_left_optical'],
-    )
-
     return LaunchDescription([
         serial_id_arg,
         voyis_node,
-        static_tf,
     ])

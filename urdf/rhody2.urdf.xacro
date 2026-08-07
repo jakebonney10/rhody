@@ -65,8 +65,11 @@
        centered on the vehicle centerline, so each camera sits at
        +/- baseline/2 in y. voyis_baseline must match the factory stereo
        calibration (SDK ExtrinsicCalibrationData_t::stereo_baseline; dump it
-       with SaveCalibrationDataApp). -->
-  <xacro:property name="voyis_baseline" value="0.160"/>
+       with SaveCalibrationDataApp).
+       Value below is the factory baseline for head 180114031, read from the
+       survey export's Voyis/Calibration_180114031/AgisoftSlaveOffsets.json
+       (x = 0.16969684810099406) and corroborated by colmap_rig.json. -->
+  <xacro:property name="voyis_baseline" value="0.16969684810099406"/>
   <xacro:property name="voyis_x" value="0.3054"/>
   <xacro:property name="voyis_z" value="0.0908"/>
 
@@ -77,7 +80,7 @@
     <child link="voyis_left_link"/>
     <origin xyz="${voyis_x} ${voyis_baseline/2} ${voyis_z}" rpy="0 0 0"/>
   </joint>
-  <xacro:optical_frame name="voyis_left_optical_frame" parent="voyis_left_link"/>
+  <xacro:optical_frame name="voyis_left_optical" parent="voyis_left_link"/>
 
   <!-- Voyis Stereo: Right Entrance Pupil (starboard side) -->
   <link name="voyis_right_link"/>
@@ -86,6 +89,17 @@
     <child link="voyis_right_link"/>
     <origin xyz="${voyis_x} ${-voyis_baseline/2} ${voyis_z}" rpy="0 0 0"/>
   </joint>
-  <xacro:optical_frame name="voyis_right_optical_frame" parent="voyis_right_link"/>
+  <xacro:optical_frame name="voyis_right_optical" parent="voyis_right_link"/>
+
+  <!-- Voyis IMU: inside the camera housing. Placed at the left camera link
+       as an identity placeholder — TODO: replace with the factory extrinsics
+       (SDK ImuCalibration_t::body_T_imu, dump with SaveCalibrationDataApp),
+       including the IMU axis orientation. -->
+  <link name="voyis_imu"/>
+  <joint name="voyis_left_to_imu" type="fixed">
+    <parent link="voyis_left_link"/>
+    <child link="voyis_imu"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
 
 </robot>

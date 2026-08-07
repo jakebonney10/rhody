@@ -105,6 +105,7 @@ ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR python/${PROJECT_NAME})
 install(PROGRAMS
   python/gps2map.py
   python/pressure2depth.py
+  python/compressed_to_mono.py
   DESTINATION lib/${PROJECT_NAME})
 
 #############
