@@ -88,6 +88,26 @@ install(TARGETS
   ${EXECUTABLES}
   DESTINATION lib/${PROJECT_NAME}/
 )
+
+###################
+## components    ##
+###################
+# Composable nodes, kept in components/ rather than src/ so the GLOB above does
+# not link them into every executable. These exist to be loaded into the nvblox
+# container, where their output stays in-process instead of hitting the wire.
+find_package(rclcpp_components REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc)
+
+add_library(${PROJECT_NAME}_components SHARED
+  components/compressed_decoder_node.cpp)
+ament_target_dependencies(${PROJECT_NAME}_components rclcpp rclcpp_components sensor_msgs)
+target_link_libraries(${PROJECT_NAME}_components ${OpenCV_LIBS})
+rclcpp_components_register_nodes(${PROJECT_NAME}_components "rhody::CompressedDecoderNode")
+
+install(TARGETS ${PROJECT_NAME}_components
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
 install(DIRECTORY
   launch
   config

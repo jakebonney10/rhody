@@ -53,3 +53,7 @@ CATKIN_IGNORE
 rviz/install/
 
 rviz/log/
+
+install/
+
+log/

@@ -1,0 +1,83 @@
+# nvblox for the Voyis stereo pair on Rhody 2.
+#
+# Overrides only what differs from
+# /opt/ros/humble/share/nvblox_examples_bringup/config/nvblox/nvblox_base.yaml.
+# nvblox's defaults assume a ground robot driving through a room; a survey
+# vehicle free-flying over a wreck is a different problem.
+#
+# Depth geometry for ~/bags/william_elgin_704 (--scale 0.25 of the 2816x2816
+# native sensor), from william_elgin_704.log:
+#
+#     f = 1895.6748 * 0.25 = 473.92 px      B = 0.169697 m      f*B = 80.42 px*m
+#     depth = 80.42 / disparity
+#
+#     altitude   disparity   depth error per px of disparity  (z^2 / f*B)
+#       2 m       40.2 px      0.05 m
+#       4 m       20.1 px      0.20 m
+#       6 m       13.4 px      0.45 m
+#
+# So a 5 cm voxel is matched to roughly 2 m altitude, and past ~5 m a single
+# pixel of disparity error already exceeds the voxel -- integrating further out
+# only smears the surface. If a survey ran higher than ~3 m, raise voxel_size
+# to 0.10 rather than raising the integration distance.
+/**:
+  ros__parameters:
+    # use_sim_time is set by the launch file (true for bag replay, false live),
+    # deliberately not pinned here.
+
+    # cuVSLAM's odom is smooth and continuous; map jumps whenever a loop closes,
+    # and nvblox cannot deform a map it has already integrated. Integrate in odom
+    # and accept the drift rather than tearing the reconstruction on every
+    # closure.
+    global_frame: odom
+    pose_frame: base_link
+    use_tf_transforms: true
+
+    num_cameras: 1
+    use_depth: true
+    use_lidar: false
+    # william_elgin_704 is mono8, so there is no colour to integrate. See the
+    # "colour the mesh" section of the README for the rgb8 path.
+    use_color: false
+
+    mapping_type: static_tsdf
+    # A 2D ground-plane slice is meaningless for a free-flying vehicle, and the
+    # ESDF is not the deliverable here -- the mesh is. Keep it off the critical
+    # path but leave it alive so nav2 experiments stay possible.
+    esdf_mode: 3d
+    update_esdf_rate_hz: 1.0
+    update_mesh_rate_hz: 5.0
+
+    voxel_size: 0.05
+    max_back_projection_distance: 5.0
+
+    # Keep the whole survey. The 5.0 m default deletes every block further than
+    # that from base_link, which is right for a robot maintaining a local
+    # costmap and useless for a wreck survey -- the map trails the vehicle by a
+    # few metres and the finished product is whatever happened to be nearby when
+    # you hit save_ply. Values <= 0 disable clearing entirely.
+    map_clearing_radius_m: -1.0
+
+    # ...and stop it evaporating. nvblox decays TSDF weights at
+    # decay_tsdf_rate_hz, and static_mapper.decay_integrator_deallocate_decayed_blocks
+    # frees any block that falls under static_mapper.tsdf_decayed_weight_threshold.
+    # At the defaults (5 Hz, factor 0.95, threshold 0.001) a block the camera has
+    # left is gone in about 30 s — at survey speed the map trails the vehicle by
+    # ~10 m and never grows past that, however long you fly. Decay exists for
+    # robots in changing scenes; a wreck does not move.
+    decay_tsdf_rate_hz: -1.0
+
+    # One 30 Mbps budget is shared across every streamed layer (mesh, tsdf,
+    # colour, and their marker variants). With only RViz's mesh display attached
+    # the mesh gets all of it and looks fine -- but attach a `ros2 bag record -a`
+    # that also subscribes to the marker layers and the mesh silently drops to
+    # *zero* messages. Nothing warns; the bag just has an empty /nvblox_node/mesh
+    # and you find out on playback. Raised so a recorder can take everything at
+    # once. All of this is loopback to disk, so the limit buys nothing here.
+    layer_streamer_bandwidth_limit_mbps: 2000.0
+
+    # The integrator settings live under the mapper's own namespace. Setting
+    # them bare is silently ignored -- the node keeps its 7 m default and
+    # `ros2 param get nvblox_node projective_integrator_max_integration_distance_m`
+    # answers "Parameter not set", which is the only sign anything is wrong.
+    static_mapper.projective_integrator_max_integration_distance_m: 5.0
