@@ -126,6 +126,10 @@ install(PROGRAMS
   python/gps2map.py
   python/pressure2depth.py
   python/compressed_to_mono.py
+  # Sensor FOV tooling: regenerate meshes/fov/*.stl from config/sensor_fov.yaml,
+  # and render the offscreen coverage figure.
+  scripts/gen_fov_meshes.py
+  scripts/render_fov_figure.py
   DESTINATION lib/${PROJECT_NAME})
 
 #############

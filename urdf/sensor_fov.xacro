@@ -1,0 +1,148 @@
+<?xml version="1.0" ?>
+<!--
+  Sensor field-of-view visuals for Rhody 2.
+
+  Included by rhody2.urdf.xacro only when fov:=true, so every existing pipeline
+  (SLAM, nvblox, EKF) sees the exact same link set it saw before. This file adds
+  visual-only links - no collision, no inertia - whose sole job is to make the
+  sensor coverage visible in RViz and in the offscreen figure renderer.
+
+  Geometry lives in the meshes, not here. The solids under meshes/fov/ are baked
+  from config/sensor_fov.yaml by scripts/gen_fov_meshes.py, generated in each
+  sensor's own frame (+x boresight, apex at the origin), so they attach with an
+  identity origin and inherit the sensor's real extrinsics from the joints in
+  rhody2.urdf.xacro. That is the point of doing it this way: the coverage you
+  see is drawn through the same transforms the drivers use, so the picture
+  cannot drift away from the calibration.
+
+  IMPORTANT: the meshes are truncated at config/sensor_fov.yaml's
+  display_range_m (3 m), not at each sensor's true maximum range. See that file
+  for why, and put the true ranges in any figure caption.
+
+  Colours below mirror the `color`/`alpha` fields in config/sensor_fov.yaml.
+  Keep the two in sync - the YAML drives the offscreen renderer, this drives
+  RViz.
+-->
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:property name="fov_deg" value="${pi / 180.0}"/>
+  <xacro:property name="fov_mesh" value="package://rhody/meshes/fov"/>
+
+  <material name="fov_voyis">      <color rgba="0.18 0.60 1.00 0.16"/></material>
+  <material name="fov_gemini">     <color rgba="1.00 0.60 0.10 0.18"/></material>
+  <material name="fov_waterlinked"><color rgba="0.78 0.38 0.96 0.18"/></material>
+  <material name="fov_dvl">        <color rgba="0.20 0.82 0.55 0.30"/></material>
+
+  <!-- A visual-only link carrying one FOV solid, rigidly attached to a sensor
+       link. Separate links rather than extra <visual> tags on the sensor links
+       so each coverage volume gets its own RViz checkbox. -->
+  <xacro:macro name="fov_volume" params="name parent mesh material *origin">
+    <link name="${name}">
+      <visual>
+        <xacro:insert_block name="origin"/>
+        <geometry>
+          <mesh filename="${fov_mesh}/${mesh}.stl"/>
+        </geometry>
+        <material name="${material}"/>
+      </visual>
+    </link>
+    <joint name="${parent}_to_${name}" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ================================================================== -->
+  <!-- Voyis Discovery stereo: 73.2 x 73.2 deg per camera.                -->
+  <!-- Two frustums, one per entrance pupil. Their intersection is the    -->
+  <!-- stereo overlap - the volume that actually yields depth - and it  -->
+  <!-- reads directly off the render as the doubly-shaded wedge.          -->
+  <!-- ================================================================== -->
+  <xacro:fov_volume name="voyis_left_fov" parent="voyis_left_link"
+                    mesh="voyis_stereo_frustum" material="fov_voyis">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:fov_volume>
+
+  <xacro:fov_volume name="voyis_right_fov" parent="voyis_right_link"
+                    mesh="voyis_stereo_frustum" material="fov_voyis">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:fov_volume>
+
+  <!-- ================================================================== -->
+  <!-- Gemini 1200ik FLS: 120 deg azimuth x 20 deg elevation.             -->
+  <!-- The 5 deg down-pitch comes from base_to_fls, not from here.        -->
+  <!-- ================================================================== -->
+  <xacro:fov_volume name="fls_fov" parent="fls_link"
+                    mesh="gemini_fls_fan" material="fov_gemini">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:fov_volume>
+
+  <!-- ================================================================== -->
+  <!-- Water Linked Sonar 3D-15: 90 deg azimuth x 40 deg elevation.       -->
+  <!-- PLANNED SENSOR - NOT INSTALLED. The mount below is a placeholder: -->
+  <!-- the FLS pose mirrored to starboard, same 5 deg down-pitch, so the  -->
+  <!-- pair straddles the centreline and the overlap with the FLS fan is  -->
+  <!-- representative of the intended integration. Replace with the       -->
+  <!-- measured Shapr3D offsets once the sensor is actually mounted; any  -->
+  <!-- quantitative claim about FLS/3D-sonar overlap depends on it.       -->
+  <!-- ================================================================== -->
+  <link name="waterlinked_link"/>
+  <joint name="base_to_waterlinked" type="fixed">
+    <parent link="base_link"/>
+    <child link="waterlinked_link"/>
+    <origin xyz="0.3791 -0.1545 0.2231" rpy="0 ${5.0 * fov_deg} 0"/>
+  </joint>
+
+  <xacro:fov_volume name="waterlinked_fov" parent="waterlinked_link"
+                    mesh="waterlinked_3d_fan" material="fov_waterlinked">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:fov_volume>
+
+  <!-- ================================================================== -->
+  <!-- Nucleus 1000 DVL: three slanted beams + central altimeter.         -->
+  <!--                                                                    -->
+  <!-- The beam mesh opens along -z. For a beam slanted by theta off      -->
+  <!-- nadir at azimuth phi, the direction is                             -->
+  <!--   (sin(theta)cos(phi), sin(theta)sin(phi), -cos(theta))            -->
+  <!-- and with URDF's fixed-axis R = Rz(y)Ry(p)Rx(r) that is reached by  -->
+  <!--   rpy = (0, -theta, phi)                                           -->
+  <!-- The altimeter is the theta = 0 case, so it needs no rotation.      -->
+  <!--                                                                    -->
+  <!-- dvl_slant is ASSUMED at 25 deg - Nortek's published Nucleus1000    -->
+  <!-- figure, not stated in docs/N3015-033. See config/sensor_fov.yaml.  -->
+  <!-- ================================================================== -->
+  <xacro:property name="dvl_slant" value="25.0"/>
+
+  <link name="dvl_fov">
+    <xacro:macro name="dvl_beam" params="phi">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 ${-dvl_slant * fov_deg} ${phi * fov_deg}"/>
+        <geometry>
+          <mesh filename="${fov_mesh}/nucleus_dvl_beam.stl"/>
+        </geometry>
+        <material name="fov_dvl"/>
+      </visual>
+    </xacro:macro>
+
+    <xacro:dvl_beam phi="0"/>
+    <xacro:dvl_beam phi="120"/>
+    <xacro:dvl_beam phi="240"/>
+
+    <!-- Beam 4: central altimeter transducer, straight down. -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="${fov_mesh}/nucleus_dvl_altimeter.stl"/>
+      </geometry>
+      <material name="fov_dvl"/>
+    </visual>
+  </link>
+
+  <joint name="dvl_link_to_dvl_fov" type="fixed">
+    <parent link="dvl_link"/>
+    <child link="dvl_fov"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+</robot>

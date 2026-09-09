@@ -5,6 +5,12 @@
   <xacro:property name="namespace" value="$(arg namespace)" scope="global" />
   <xacro:property name="deg" value="${pi / 180.0}" />
 
+  <!-- fov:=true adds visual-only sensor field-of-view volumes (and the planned
+       Water Linked 3D sonar frame) for figures and coverage inspection. Off by
+       default so the runtime link/TF set is unchanged for SLAM, nvblox and the
+       EKF. See sensor_fov.xacro. -->
+  <xacro:arg name="fov" default="false" />
+
   <!-- base_link follows REP-103: x forward, y port, z up. -->
 
   <!-- Base Link -->
@@ -101,5 +107,13 @@
     <child link="voyis_imu"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
+
+  <!-- Sensor coverage volumes. Included last so it can attach to every sensor
+       link declared above. -->
+  <xacro:if value="$(arg fov)">
+    <!-- Relative, not $(find rhody): lets the figure renderer expand this file
+         straight from the source tree without sourcing the workspace. -->
+    <xacro:include filename="sensor_fov.xacro"/>
+  </xacro:if>
 
 </robot>

@@ -6,6 +6,91 @@ For static transform to view tf run `ros2 run tf2_ros static_transform_publisher
 
 ---
 
+## Sensor field-of-view visualisation
+
+Draws the coverage volume of every sensor on the Rhody 2 model: the two Voyis
+stereo frustums, the Gemini FLS fan, the Water Linked 3D sonar wedge, and the
+Nucleus DVL's three slanted beams plus altimeter.
+
+Live, in RViz:
+
+```bash
+ros2 launch rhody sensor_fov.launch.py
+```
+
+Each volume is its own link, so `RobotModel > Links` gives you a checkbox per
+sensor. `TF` is in the config but off by default — turn it on to check the
+extrinsics against the volumes.
+
+For a figure (offscreen, no display needed, writes PNG + PDF):
+
+```bash
+python3 src/rhody/scripts/render_fov_figure.py
+# -> src/rhody/docs/figures/rhody2_sensor_fov.{png,pdf}
+```
+
+The figure is laid out at the width it will occupy on the page, so the point
+sizes in it are the point sizes you get at
+`\includegraphics[width=\textwidth]`. It defaults to a 6.5 in text block —
+if yours differs, say so and the type and caption re-flow to match:
+
+```bash
+python3 src/rhody/scripts/render_fov_figure.py --width-in 5.5
+```
+
+Sizing type on an oversized canvas and letting LaTeX shrink it is what makes
+figure text illegible; no amount of bumping the font size fixes it while the
+canvas is wide. The run also prints a ready-to-paste `figure` environment with
+the provenance caption, which is deliberately *not* burned into the image.
+
+It also prints the pairwise coverage overlap, computed analytically rather than
+from the meshes:
+
+```
+  voyis_stereo    & gemini_fls         1.12 m³   ( 20.8% of voyis_stereo,  57.7% of gemini_fls)
+  voyis_stereo    & waterlinked_3d     2.22 m³   ( 41.1% of voyis_stereo,  77.5% of waterlinked_3d)
+  gemini_fls      & waterlinked_3d     1.34 m³   ( 68.9% of gemini_fls,  46.9% of waterlinked_3d)
+```
+
+### How the pieces fit
+
+| File | Owns |
+|---|---|
+| `config/sensor_fov.yaml` | FOV angles, ranges, colours, and the provenance of every number |
+| `scripts/gen_fov_meshes.py` | bakes that YAML into `meshes/fov/*.stl` |
+| `urdf/sensor_fov.xacro` | hangs those meshes off the sensor links, included only when `fov:=true` |
+| `scripts/render_fov_figure.py` | offscreen VTK render + overlap numbers |
+
+Extrinsics are never duplicated: the FOV solids are generated in each sensor's
+own frame with the apex at the origin, so they attach with an identity origin
+and inherit the real mounting pose from the joints in `rhody2.urdf.xacro`. The
+picture therefore cannot drift away from the calibration — if the URDF is
+wrong, the figure is wrong the same way.
+
+After editing `config/sensor_fov.yaml`, regenerate:
+
+```bash
+python3 src/rhody/scripts/gen_fov_meshes.py
+```
+
+### Caveats worth knowing before quoting any of this
+
+- **Volumes are truncated at 2 m**, not at each sensor's true range (see
+  `display_range_m`). Drawn to scale the Gemini's 50 m fan makes the vehicle a
+  dot. True ranges are in the legend and in the YAML.
+- **The Water Linked Sonar 3D-15 is not installed.** Both its 90° × 40° FOV and
+  its mounting pose are placeholders — the FLS mount mirrored to starboard. Any
+  quantitative claim about FLS/3D-sonar overlap depends on replacing that with
+  measured offsets.
+- **The DVL beam geometry is assumed**: 25° slant, 3° beamwidth. Three beams is
+  confirmed (manual + driver), but `docs/N3015-033` gives no beam angles.
+- Voyis FOV (73.2° square) is derived, not assumed — from the factory intrinsics
+  `f = 1895.675 px` on a 2816² sensor in `Calibration_180114031/*.xml`.
+- `fov:=true` is opt-in and off by default, so SLAM/nvblox/EKF pipelines see the
+  same 9-link tree they always did.
+
+---
+
 ## Voyis + Visual SLAM demo
 
 Replays a Voyis survey bag through Isaac ROS Visual SLAM with the Rhody 2 model

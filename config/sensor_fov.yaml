@@ -1,0 +1,113 @@
+# Field-of-view geometry for the Rhody 2 sensor suite.
+#
+# This file owns the FOV *shape* (angles, ranges, colours). The URDF
+# (urdf/rhody2.urdf.xacro) owns the *extrinsics* — where each sensor sits on the
+# vehicle. Nothing here duplicates a transform.
+#
+# Consumers:
+#   scripts/gen_fov_meshes.py    -> meshes/fov/*.stl   (baked FOV solids)
+#   urdf/sensor_fov.xacro        -> RViz visuals referencing those meshes
+#   scripts/render_fov_figure.py -> the offscreen thesis figure
+#
+# After editing anything under `sensors:`, regenerate the meshes:
+#   python3 scripts/gen_fov_meshes.py
+#
+# ---------------------------------------------------------------------------
+# Display range
+# ---------------------------------------------------------------------------
+# Every FOV solid is drawn out to this range, NOT to its true maximum range.
+# Drawn to scale the Gemini's 50 m fan would make the vehicle a dot and the
+# stereo frustum invisible. A common truncation radius keeps the *relative*
+# angular coverage and the sensor-to-sensor overlap honest, which is the point
+# of the figure. Each sensor's true max range is carried in `max_range_m` and
+# belongs in the figure caption / legend.
+#
+# 2.0 m is a legibility compromise, not a spec: it is the largest radius at
+# which the 1.05 m vehicle still reads as a vehicle rather than a speck beside
+# a 73 deg stereo frustum. Raise it and the hull disappears; lower it and the
+# FLS/3D-sonar overlap stops being the visual subject.
+display_range_m: 2.0
+
+sensors:
+
+  # ---------------------------------------------------------------------
+  # Voyis Discovery stereo pair -- one frustum per camera.
+  # ---------------------------------------------------------------------
+  # FOV derived from the factory intrinsic calibration for head 180114031:
+  #   Voyis/Calibration_180114031/180114031_cam0.xml (and cam1.xml, identical)
+  #   width = height = 2816 px, f = 1895.6747569500258 px
+  #   FOV = 2*atan(2816 / (2 * 1895.6747569500258)) = 73.206 deg, square sensor.
+  # Both cameras share the same intrinsics, so both frustums are identical; the
+  # 0.1697 m baseline between them comes from the URDF.
+  voyis_stereo:
+    type: frustum          # rectangular pyramid, planar far face (a camera)
+    label: "Voyis Discovery stereo ×2"
+    az_fov_deg: 73.206
+    el_fov_deg: 73.206
+    max_range_m: 4.0       # practical turbidity-limited standoff, not a hard spec
+    range_note: "~2-4 m, turbidity-limited"
+    color: [0.18, 0.60, 1.00]
+    alpha: 0.16
+
+  # ---------------------------------------------------------------------
+  # Tritech Gemini 1200ik forward-looking multibeam imaging sonar.
+  # ---------------------------------------------------------------------
+  # Azimuth aperture 120 deg: the driver default and the value we run, see
+  #   gemini_sonar_driver/config/gemini_sonar.yaml -> aperture: 120.0
+  #   (the SDK also accepts 65 deg; SVS5_CONFIG_APERTURE).
+  # Elevation 20 deg is the Tritech published vertical beamwidth for the
+  # 1200ik. The GLF stream does not carry beamwidths -- glf_processor.cpp
+  # leaves tx_beamwidths/rx_beamwidths empty -- so this one is from the
+  # datasheet, not from the wire.
+  gemini_fls:
+    type: fan              # spherical sector: constant-range cap, wide az, thin el
+    label: "Tritech Gemini 1200ik FLS"
+    az_fov_deg: 120.0
+    el_fov_deg: 20.0
+    max_range_m: 50.0      # 1200 kHz mode; 120 m at 720 kHz. Driver default is 10 m.
+    range_note: "50 m @1200 kHz"
+    color: [1.00, 0.60, 0.10]
+    alpha: 0.18
+
+  # ---------------------------------------------------------------------
+  # Water Linked Sonar 3D-15 -- MOCK. Not installed on the vehicle.
+  # ---------------------------------------------------------------------
+  # 90 x 40 deg is the planned-integration figure, not a value read off a unit
+  # or a driver. Both the FOV and the mounting pose in the URDF are
+  # placeholders; revisit before any claim that depends on the exact numbers.
+  waterlinked_3d:
+    type: fan
+    label: "Water Linked Sonar 3D-15"
+    az_fov_deg: 90.0
+    el_fov_deg: 40.0
+    max_range_m: 15.0
+    range_note: "15 m (planned)"
+    color: [0.78, 0.38, 0.96]
+    alpha: 0.18
+
+  # ---------------------------------------------------------------------
+  # Nortek Nucleus 1000 DVL -- 3 slanted beams + central altimeter.
+  # ---------------------------------------------------------------------
+  # Three beams is confirmed from the manual (docs/N3015-033, System Overview:
+  # "three acoustic beams oriented in a diverging, convex configuration, plus a
+  # central altimeter transducer") and from the driver, which parses exactly
+  # velocityBeam1..3 / distanceBeam1..3 (nucleus_driver/_parser.py).
+  #
+  # ASSUMED, verify before quoting: slant_deg 25.0 and beamwidth_deg 3.0 are
+  # NOT stated in the shipped manual PDF -- it gives frequency, altitude range
+  # and accuracy but no beam geometry. 25 deg is Nortek's published Nucleus1000
+  # figure. The beams render as thin needles either way, so the figure's
+  # message (point measurement, not imaging) is insensitive to a few degrees.
+  nucleus_dvl:
+    type: beams
+    label: "Nortek Nucleus 1000 DVL"
+    n_beams: 3
+    slant_deg: 25.0        # ASSUMED -- see note above
+    beamwidth_deg: 3.0     # ASSUMED -- nominal for a 1 MHz DVL transducer
+    azimuth_offset_deg: 0.0
+    include_altimeter: true
+    altimeter_beamwidth_deg: 4.0
+    max_range_m: 50.0      # max altitude, manual Table 2 (min 0.1 m)
+    range_note: "0.1-50 m alt."
+    color: [0.20, 0.82, 0.55]
+    alpha: 0.30

@@ -29,7 +29,11 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'robot_description': ParameterValue(
-                Command(['xacro ', LaunchConfiguration('model')]),
+                # fov:= is passed unconditionally. xacro ignores args a file
+                # never references, so this stays harmless for models that do
+                # not declare it (rhody.urdf.xacro, the Rhody 1 description).
+                Command(['xacro ', LaunchConfiguration('model'),
+                         ' fov:=', LaunchConfiguration('fov')]),
                 value_type=str,
             ),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
@@ -76,6 +80,10 @@ def generate_launch_description():
         launch.actions.DeclareLaunchArgument(
             name='use_sim_time', default_value='false',
             description='Use /clock instead of wall time'),
+        launch.actions.DeclareLaunchArgument(
+            name='fov', default_value='false',
+            description='Add sensor field-of-view visuals (rhody2 only). '
+                        'See sensor_fov.launch.py for the ready-made view.'),
         robot_state_publisher_node,
         joint_state_publisher_node,
         rviz_node,
