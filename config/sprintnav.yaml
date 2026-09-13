@@ -1,0 +1,33 @@
+/**:
+  ros__parameters:
+    # Sonardyne SPRINT-Nav Mini on Rhody. The device is configured via its
+    # web UI (http://192.168.2.206): create an output port and assign the
+    # HNAV telegram to it. This driver only listens.
+    transport: 'tcp'
+    ip: '192.168.2.206'
+    port: 4001                  # TODO: confirm the output port set on the web UI
+    reconnect_interval_s: 2.0
+
+    data_timeout_s: 2.0
+
+    roll_pitch_stddev_deg: 0.05
+    angular_rate_stddev_dps: 0.1
+    depth_stddev_m: 0.1
+
+    # sensors/<sensor>/<topic> to line up with the EKF input convention
+    # (see ekf_global.yaml: sensors/nortek_dvl/...)
+    topics:
+      status: 'sensors/sprintnav/status'
+      imu: 'sensors/sprintnav/imu'
+      navsatfix: 'sensors/sprintnav/navsatfix'
+      velocity: 'sensors/sprintnav/velocity'
+      depth: 'sensors/sprintnav/depth'
+      altitude: 'sensors/sprintnav/altitude'
+      dvl: 'sensors/sprintnav/dvl'
+      temperature: 'sensors/sprintnav/temperature'
+      sound_speed: 'sensors/sprintnav/sound_speed'
+      time_reference: 'sensors/sprintnav/time_reference'
+
+    frames:
+      sensor: 'sprintnav_link'
+      depth: 'utm_local'        # matches ekf_global odom/world frame

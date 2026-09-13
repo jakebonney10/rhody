@@ -45,6 +45,17 @@
     <origin xyz="-0.0768 0 0.3098" rpy="0 0 0"/>
   </joint>
 
+  <!-- SPRINT-Nav Mini INS/DVL. TODO: measure mounting offset/orientation.
+       Note: HNAV depth is reported at the vehicle CRP configured on the
+       device web UI; HNAV altitude is at the DVL head (not attitude
+       compensated). -->
+  <link name="sprintnav_link"/>
+  <joint name="base_to_sprintnav" type="fixed">
+    <parent link="base_link"/>
+    <child link="sprintnav_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
   <!-- FLS (Gemini): measured in Shapr3D from sonar to DVL:
        dX 14.9247 in, dY 6.0827 in, dZ 8.7819 in (0.3791, 0.1545, 0.2231 m).
        Forward of the DVL, port of centerline, above the DVL.
