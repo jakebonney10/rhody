@@ -1,0 +1,13 @@
+[Unit]
+Description=Rhody SPRINT-Nav Mini INS/DVL driver
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager) and the driver reconnects on its own (reconnect_interval_s).
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_sprintnavmini.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

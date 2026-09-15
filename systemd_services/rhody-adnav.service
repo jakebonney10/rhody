@@ -1,0 +1,14 @@
+[Unit]
+Description=Rhody Advanced Navigation (Subsonus USBL) driver
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager). If the TCP link drops the driver process exits and systemd
+# restarts it (Restart=always), which re-establishes the connection.
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_adnav.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

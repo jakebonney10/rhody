@@ -12,9 +12,12 @@ def generate_launch_description():
         'adnav_tcp_client.yaml'
         )
 
+    # name 'adnav' under namespace 'rhody/sensors' -> topics publish at
+    # /rhody/sensors/adnav/* (the driver prefixes every topic with the node
+    # name), matching the rhody sensor schema used by sprintnav.
     node=Node(
-        name = 'adnav_node',
-        namespace = 'rhody',
+        name = 'adnav',
+        namespace = 'rhody/sensors',
         package = 'adnav_driver',
         executable = 'adnav_driver',
         emulate_tty = True,
