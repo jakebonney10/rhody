@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Launch file for the Sonardyne SPRINT-Nav Mini INS/DVL driver in the rhody
-namespace. Connects via TCP to the SPRINT-Nav at 192.168.2.206.
+Launch file for the Sonardyne SPRINT-Nav Mini INS/DVL driver under the
+rhody/nav/sensors namespace. Connects via TCP to the SPRINT-Nav at 192.168.2.206.
 """
 
 import os
@@ -23,7 +23,7 @@ def generate_launch_description():
         package='sprintnav_driver',
         executable='sprintnav',
         name='sprintnav',
-        namespace='rhody',
+        namespace='rhody/nav/sensors',
         output='screen',
         parameters=[config]
     )

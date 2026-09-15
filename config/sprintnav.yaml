@@ -14,19 +14,19 @@
     angular_rate_stddev_dps: 0.1
     depth_stddev_m: 0.1
 
-    # sensors/<sensor>/<topic> to line up with the EKF input convention
-    # (see ekf_global.yaml: sensors/nortek_dvl/...)
+    # Topic names are relative to the node namespace (rhody/nav/sensors), so
+    # 'sprintnav/<topic>' resolves to /rhody/nav/sensors/sprintnav/<topic>.
     topics:
-      status: 'sensors/sprintnav/status'
-      imu: 'sensors/sprintnav/imu'
-      navsatfix: 'sensors/sprintnav/navsatfix'
-      velocity: 'sensors/sprintnav/velocity'
-      depth: 'sensors/sprintnav/depth'
-      altitude: 'sensors/sprintnav/altitude'
-      dvl: 'sensors/sprintnav/dvl'
-      temperature: 'sensors/sprintnav/temperature'
-      sound_speed: 'sensors/sprintnav/sound_speed'
-      time_reference: 'sensors/sprintnav/time_reference'
+      status: 'sprintnav/status'
+      imu: 'sprintnav/imu'
+      navsatfix: 'sprintnav/navsatfix'
+      velocity: 'sprintnav/velocity'
+      depth: 'sprintnav/depth'
+      altitude: 'sprintnav/altitude'
+      dvl: 'sprintnav/dvl'
+      temperature: 'sprintnav/temperature'
+      sound_speed: 'sprintnav/sound_speed'
+      time_reference: 'sprintnav/time_reference'
 
     frames:
       sensor: 'sprintnav_link'
