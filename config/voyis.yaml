@@ -20,7 +20,6 @@
             right_image: "stereo/right/image_raw/compressed"
             left_info:   "stereo/left/camera_info"
             right_info:  "stereo/right/camera_info"
-            disparity:   "stereo/disparity"
             point_cloud: "stereo/points"
             imu:         "imu/data_raw"
 
