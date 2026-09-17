@@ -9,10 +9,11 @@ and:
 
   use_sim_time  false. There is no /clock live, and nodes left on sim time wait
                 for one forever.
-  prefix        /rhody/stereo. voyis.launch.py runs the driver in the 'rhody'
-                namespace and config/voyis.yaml gives relative topic names, so
-                the topics land under /rhody. Pass prefix:= if you run the
-                driver somewhere else.
+  prefix        /rhody/perception/sensors/voyis/stereo. voyis.launch.py runs the
+                driver in the 'rhody/perception/sensors/voyis' namespace and
+                config/voyis.yaml gives relative topic names, so the stereo
+                topics land there. Pass prefix:= if you run the driver
+                somewhere else.
 
 Streaming is started externally by the pilot/Voyis application -- the driver
 only registers callbacks, so bring this up once frames are flowing.
@@ -74,7 +75,7 @@ def generate_launch_description():
                               description='also start voyis.launch.py'),
         DeclareLaunchArgument('serial_id', default_value='',
                               description='camera serial; empty = first detected'),
-        DeclareLaunchArgument('prefix', default_value='/rhody/stereo',
+        DeclareLaunchArgument('prefix', default_value='/rhody/perception/sensors/voyis/stereo',
                               description='where the driver publishes'),
         DeclareLaunchArgument('nvblox', default_value='false'),
         DeclareLaunchArgument('color', default_value='false'),

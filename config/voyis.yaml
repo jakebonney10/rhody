@@ -1,6 +1,7 @@
 # Voyis Discovery stereo driver — rhody deployment.
-# Loaded by launch/voyis.launch.py. The node runs in the 'rhody' namespace, so
-# the relative topic names below resolve under /rhody (e.g. /rhody/stereo/points).
+# Loaded by launch/voyis.launch.py. The node runs in the
+# 'rhody/perception/sensors/voyis' namespace, so the relative topic names below
+# resolve under it (e.g. /rhody/perception/sensors/voyis/stereo/points).
 # The /** wildcard matches the node regardless of its fully-qualified name.
 /**:
     ros__parameters:
@@ -13,9 +14,6 @@
 
         # Target camera serial ID. Leave empty to connect to the first detected device.
         serial_id: ""
-
-        # Requested data streaming rate in Hz
-        publish_rate_hz: 10.0
 
         topics:
             left_image:  "stereo/left/image_raw/compressed"

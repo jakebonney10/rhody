@@ -19,8 +19,9 @@ The two settings that differ live vs. replay and are easy to get wrong:
                 this wrong live means every node blocks forever waiting for a
                 clock that never comes.
   prefix        the bag builder writes /stereo; the live driver runs in the
-                'rhody' namespace (config/voyis.yaml uses relative names), so
-                its topics land under /rhody/stereo.
+                'rhody/perception/sensors/voyis' namespace (config/voyis.yaml
+                uses relative names), so its topics land under
+                /rhody/perception/sensors/voyis/stereo.
 """
 
 import os

@@ -1,0 +1,18 @@
+[Unit]
+Description=Rhody Voyis Discovery stereo camera driver
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager). The driver connects to the camera over the Voyis SDK DDS
+# transport; if that link drops the node exits and systemd restarts it
+# (Restart=always), which re-establishes the connection.
+# StartLimitIntervalSec=0 disables restart-rate throttling so the service keeps
+# retrying indefinitely while the camera is unavailable, instead of giving up.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_voyis.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

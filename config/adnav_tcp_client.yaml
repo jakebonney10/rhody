@@ -21,6 +21,11 @@
     #                    already be outputting 020 + 028 at the desired rate.
     configure_device: true
 
+    # On TCP-client connection loss the node stays alive and retries the
+    # connection every reconnect_interval_s seconds (it does not exit). This
+    # avoids churning the process while the device is powered off.
+    reconnect_interval_s: 2.0
+
     ################ Serial Communication Parameters
     # Supported Baud Rates: 2.4K, 4.8K, 9.6K, 19.2K, 38.4K, 57.6K.
     # 115.2K, 230.4K, 460.8K, 500K, 576K, 921.6K, 1M, 2M

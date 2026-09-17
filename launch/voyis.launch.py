@@ -3,8 +3,10 @@
 """
 Launch file for the Voyis Discovery stereo driver in the rhody namespace.
 
-Runs the driver under the 'rhody' namespace, so its topics resolve under /rhody
-(e.g. /rhody/stereo/points, /rhody/stereo/disparity). Data is stamped in the
+Runs the driver under the 'rhody/perception/sensors/voyis' namespace, so its
+topics resolve under /rhody/perception/sensors/voyis (e.g.
+/rhody/perception/sensors/voyis/stereo/points). This parallels the nav-side
+convention (rhody/nav/sensors/<device>). Data is stamped in the
 voyis_left_optical / voyis_right_optical frames (config/voyis.yaml), which the
 vehicle URDF publishes — run rhody_description.launch.py (or any launch that
 starts robot_state_publisher) alongside so the point cloud attaches to the
@@ -37,7 +39,7 @@ def generate_launch_description():
         package='voyis_discovery_driver',
         executable='voyis_discovery',
         name='voyis_discovery',
-        namespace='rhody',
+        namespace='rhody/perception/sensors/voyis',
         output='screen',
         parameters=[
             config,

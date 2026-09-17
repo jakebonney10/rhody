@@ -3,6 +3,9 @@ Description=Rhody Advanced Navigation (Subsonus USBL) driver
 # No network-online ordering: this is a --user unit (that target lives in the
 # system manager). If the TCP link drops the driver process exits and systemd
 # restarts it (Restart=always), which re-establishes the connection.
+# StartLimitIntervalSec=0 disables restart-rate throttling so the service keeps
+# retrying indefinitely while the device is unplugged, instead of giving up.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
