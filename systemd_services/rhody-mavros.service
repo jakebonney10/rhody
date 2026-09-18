@@ -1,0 +1,17 @@
+[Unit]
+Description=Rhody MAVROS BlueROV FCU bridge (IMU, pressure/depth, EKF baseline)
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager). MAVROS listens for the FCU heartbeat on udp://:14550@ and
+# reconnects on its own; if the process dies systemd restarts it
+# (Restart=always). StartLimitIntervalSec=0 disables restart-rate throttling so
+# the service keeps retrying indefinitely while the ROV is powered off.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_mavros.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

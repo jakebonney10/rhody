@@ -70,9 +70,11 @@ def generate_launch_description():
                 'use_sim_time': LaunchConfiguration('use_sim_time'),
             }
         ],
-        # Remap topics to be more intuitive/standard
+        # Remap topics to be more intuitive/standard.
+        # Leave /diagnostics un-remapped so mavros joins the global /diagnostics
+        # topic that the ROS 2 diagnostic_aggregator (and the other rhody
+        # drivers) use.
         remappings=[
-            ('/diagnostics', '/rhody/diagnostics'),
             ('mavros/data', 'mavros/imu/data'),
             ('mavros/data_raw', 'mavros/imu/data_raw'),
             ('mavros/mag', 'mavros/imu/mag'),
@@ -95,7 +97,7 @@ def generate_launch_description():
         ],
         remappings=[
             ('pressure', 'mavros/imu/static_pressure'),
-            ('depth', 'depth'),
+            ('depth', 'nav/sensors/bluerov/depth'),
         ]
     )
     

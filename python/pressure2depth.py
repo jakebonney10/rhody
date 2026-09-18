@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 
+import math
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import FluidPressure, Temperature
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
 # -----------------------------
-# Constants (saltwater equation)
+# Constants (UNESCO 1983 saltwater pressure->depth)
+# depth = numerator(P) / gravity(lat, P), P in decibars (gauge/sea pressure)
 # -----------------------------
 C1 = 9.72659
 C2 = -2.2512e-5
 C3 = 2.279e-10
 C4 = -1.82e-15
-GAMMA = 2.184e-6
 
 # -----------------------------
 # Constants (freshwater equation)
@@ -26,8 +28,8 @@ class Pressure2DepthNode(Node):
         super().__init__('pressure2depth_node')
 
         # Declare and get parameters
-        self.declare_parameter('pressure_topic', '/pressure')
-        self.declare_parameter('depth_topic', '/depth')
+        self.declare_parameter('pressure_topic', 'pressure')
+        self.declare_parameter('depth_topic', 'depth')
         self.declare_parameter('ref_lat', 45.0)
         self.declare_parameter('atmospheric_pressure', 101325.0)
         self.declare_parameter('relative_frame', 'base_link')
@@ -38,6 +40,7 @@ class Pressure2DepthNode(Node):
         # Parameters
         self.pressure_topic = self.get_parameter('pressure_topic').get_parameter_value().string_value
         self.depth_topic = self.get_parameter('depth_topic').get_parameter_value().string_value
+        self.ref_lat = self.get_parameter('ref_lat').get_parameter_value().double_value
         self.atmospheric_pressure = self.get_parameter('atmospheric_pressure').get_parameter_value().double_value
         self.relative_frame = self.get_parameter('relative_frame').get_parameter_value().string_value
         self.cov_offset = self.get_parameter('cov_offset').get_parameter_value().double_value
@@ -96,8 +99,15 @@ class Pressure2DepthNode(Node):
             rho = self.calc_density_freshwater(self.temperature_c)
             return (pressure_pa - self.atmospheric_pressure) / (rho * GRAVITY)
         else:
-            dp = pressure_pa / 10000.0  # Pa → dbar
-            return (C1 + dp * (C2 + dp * (C3 + dp * C4))) * dp * (1 - GAMMA * dp)
+            # UNESCO 1983 formula. Takes gauge (sea) pressure in decibars, so
+            # subtract atmospheric first (otherwise the surface reads ~10 m deep,
+            # 1 atm ~= 10.13 dbar) and divide the pressure polynomial by the
+            # latitude-dependent gravity term (missing before -> depth ~10x high).
+            p = (pressure_pa - self.atmospheric_pressure) / 10000.0  # gauge Pa -> dbar
+            num = (((C4 * p + C3) * p + C2) * p + C1) * p
+            x = math.sin(math.radians(self.ref_lat)) ** 2
+            gravity = 9.780318 * (1.0 + (5.2788e-3 + 2.36e-5 * x) * x) + 1.092e-6 * p
+            return num / gravity
 
     def pressure_callback(self, msg):
         pressure_pa = msg.fluid_pressure

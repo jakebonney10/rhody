@@ -37,17 +37,17 @@
       disable_diag: false
     
     # Enable plugins for BlueROV
+    # Passive perception/nav dataset (no control): sensor + housekeeping only.
+    #   imu            -> imu/data, data_raw, mag, static_pressure (depth), temperatures
+    #   local_position -> EKF3 odom/pose/velocity (weak nav baseline for benchmarking)
+    #   sys_status     -> state, battery, sys_status, extended_state, statustext
+    #   sys_time       -> time_reference, timesync_status (multi-sensor time alignment)
+    #   rc_io          -> rc/out thruster PWM (proprioceptive motion prior)
+    # Re-add setpoint_*/manual_control/actuator_control/command when doing control work.
     plugin_allowlist:
-      - actuator_control
-      - command
       - imu
       - local_position
-      - manual_control
-      - param
       - rc_io
-      - setpoint_attitude
-      - setpoint_position
-      - setpoint_velocity
       - sys_status
       - sys_time
     

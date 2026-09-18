@@ -1,0 +1,18 @@
+[Unit]
+Description=Rhody Foxglove Bridge (websocket bridge for Foxglove Studio)
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager). The bridge listens for Foxglove Studio clients and tolerates
+# them connecting/disconnecting on their own; if the process exits systemd
+# restarts it (Restart=always).
+# StartLimitIntervalSec=0 disables restart-rate throttling so the service keeps
+# retrying indefinitely instead of giving up.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_foxglove.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

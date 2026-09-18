@@ -27,6 +27,9 @@ systemctl --user restart rhody-sprintnavmini.service
 systemctl --user enable rhody-adnav.service
 systemctl --user restart rhody-adnav.service
 
+systemctl --user enable rhody-mavros.service
+systemctl --user restart rhody-mavros.service
+
 # Allow user services to run at boot without an active login session (the
 # robot boots headless). Only needs to succeed once.
 sudo loginctl enable-linger "$USER"
@@ -36,3 +39,5 @@ echo "  systemctl --user status rhody-sprintnavmini.service"
 echo "  journalctl --user -u rhody-sprintnavmini.service -f"
 echo "  systemctl --user status rhody-adnav.service"
 echo "  journalctl --user -u rhody-adnav.service -f"
+echo "  systemctl --user status rhody-mavros.service"
+echo "  journalctl --user -u rhody-mavros.service -f"
