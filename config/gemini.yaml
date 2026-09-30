@@ -1,0 +1,36 @@
+/**:
+  ros__parameters:
+    # Network Configuration
+    sonar_id: 0
+    software_mode: "Evo"  # Options: Evo, EvoC, SeaNet, SeaNetC
+
+    # Frame ID
+    frame_id: "gemini_fls" # TF frame ID for sonar data
+
+    # Default Logging Configuration can also be set via StartSonar service
+    log_directory: "/data/gemini"     # Directory to save GLF log files
+
+    # Sonar Operation
+    range_m: 10.0                    # Range in meters (1-120m for 720kHz, 1-50m for 1200kHz)
+    gain_percent: 100.0              # Receiver gain 0-100%
+    aperture: 120.0                  # Sonar aperture in degrees (Switch between: 120 or 65)
+    sound_speed_ms: 1500             # Sound speed in m/s
+    sound_speed_manual: true         # Sound speed mode: true=manual, false=auto (uses sonar SOS sensor)
+    high_resolution: true            # High resolution mode (1200ik only)
+    cpu_performance: 2               # SDK beamforming level: 0=LOW,1=MED (512 beams), 2=HIGH (1024 beams), 3=ULTRA. Weak CPU lever, keep 2.
+    image_quality_pixels: 2048       # Range-direction resolution cap (samples/beam). Direct frame-rate lever on CM4 @10m: 2048=~3.7Hz (5mm bins), 1024=~7Hz (1cm), 512=~11.5Hz (2cm). No effect below ~5m range.
+    frequency_mode: 2                # Frequency selection: 0=auto|1=low|2=high|3=combined (Gemini RangeFrequencyConfig)
+    frequency_auto_threshold_m: 40.0 # Threshold (m) for auto mode to switch LF/HF (1-50m valid)
+    chirp_mode: 2                    # Chirp mode: 0=disabled, 1=enabled, 2=auto (recommended)
+
+    # Ping Mode
+    ping_free_run: true    # true=continuous (as fast as possible), false=interval-based [interval mode measured ~1Hz bursty on CM4; free-run gives steady rate]
+    ping_interval_ms: 100  # Ping interval in ms (0-999) when ping_free_run=false. Manual states 5-65Hz (15-200ms) range dpdendnet.
+    ping_ext_trigger: false # true=external TTL hardware trigger, false=software controlled
+
+    # Topic Names
+    topics:
+      raw_sonar_image: "gemini/raw_sonar_image"
+      projected_sonar_image: ""  # Optional: set to e.g. "gemini/projected_sonar" to also publish ProjectedSonarImage (off by default; ~doubles bandwidth, derivable from raw)
+      # sonar_detections: "gemini/detections"
+      raw_packet: ""  # Set to "" (empty string) to disable raw packet publishing for production

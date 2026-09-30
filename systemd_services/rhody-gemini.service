@@ -1,0 +1,20 @@
+[Unit]
+Description=Rhody Tritech Gemini 1200ik multibeam imaging sonar driver
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager). The driver discovers the head over the Gemini SDK on the
+# 192.168.2.x subnet; if discovery/init fails the node exits and systemd
+# restarts it (Restart=always), which re-runs discovery.
+# The node comes up idle (it does not ping until a start_sonar service call);
+# the head is single-master, so only this one SDK process may own it per host.
+# StartLimitIntervalSec=0 disables restart-rate throttling so the service keeps
+# retrying indefinitely while the head is unavailable, instead of giving up.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_gemini.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
