@@ -1,0 +1,28 @@
+[Unit]
+Description=Rhody rosbag2 MCAP recorder (records all topics to ~/data/rhody_mcap while running)
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager) and the recorder needs no network peer — it subscribes to
+# whatever is on the local ROS graph and picks up topics that appear later
+# (record.topic_polling_interval).
+# Unlike rhody-hydroport there is no logging_on topic: this is the stock
+# rosbag2 recorder, so it records from start to stop and each start opens a new
+# bag directory. Start and stop the unit to start and stop logging. Do not run
+# it alongside rhody-hydroport — both would record every topic.
+# StartLimitIntervalSec=0 disables restart-rate throttling so a crashed
+# recorder keeps being brought back (into a fresh bag) instead of giving up.
+StartLimitIntervalSec=0
+Conflicts=rhody-hydroport.service
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_rosbag.sh
+Restart=always
+RestartSec=5
+# On stop, rclcpp's SIGTERM handler unwinds the node, which closes the writer,
+# flushes the cache to the current .mcap file and writes metadata.yaml. Give
+# that room to finish before systemd escalates to SIGKILL, which would leave
+# the bag without metadata (recoverable with `ros2 bag reindex`).
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

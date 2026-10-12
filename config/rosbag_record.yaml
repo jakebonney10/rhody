@@ -1,0 +1,57 @@
+/**:
+  ros__parameters:
+    # Stock rosbag2 recorder on Rhody (`rosbag2_transport recorder`, the node
+    # behind `ros2 bag record`) — records every discovered topic into a split
+    # .mcap bag. Mirrors config/hydroport_mcap.yaml setting for setting; the
+    # hydroport name each value came from is noted beside it.
+    #
+    # storage.uri is NOT set here on purpose: rosbag2 refuses to open a bag
+    # directory that already exists, so systemd_services/rhody_rosbag.sh builds
+    # a fresh ~/data/rhody_mcap/rhody_<YYYY-MM-DDTHHMMSSZ> (UTC) on every start
+    # and passes it on the command line. That is hydroport's logging.directory
+    # + logging.file_prefix.
+    #
+    # There is no logging_on topic: the service records from the moment it
+    # starts until it is stopped (systemctl --user start|stop rhody-rosbag).
+
+    record:
+      all_topics: true            # hydroport: record_options.all_topics
+      all_services: false         # topics only, no service-event topics
+
+      # hydroport: topic_ignore_regex. Hidden /__* topics and the
+      # parameter-event firehose are noise; everything else — including /tf,
+      # /diagnostics, /rosout and the sonar/camera streams — is recorded.
+      # To drop a heavy stream, add it here, e.g.:
+      #   '^(/__.*|/parameter_events$|/rhody/perception/sensors/voyis/.*/image_raw$)'
+      exclude_regex: '^(/__.*|/parameter_events$)'
+      include_hidden_topics: false
+
+      # hydroport: topic_discovery_period_ms (100). How often the recorder
+      # rescans the graph for topics that came online after recording started.
+      topic_polling_interval:
+        sec: 0
+        nsec: 100000000
+
+      rmw_serialization_format: 'cdr'
+
+      # No terminal under systemd; without this the recorder tries to read
+      # pause/resume keys from stdin.
+      disable_keyboard_controls: true
+      start_paused: false
+
+    storage:
+      storage_id: 'mcap'
+
+      # hydroport: storage_preset_profile / max_bag_duration_seconds. zstd_fast
+      # keeps compression off the critical path on the Orin; 900 s splits bound
+      # the damage from a power cut to one file and keep single files small
+      # enough to copy off between dives.
+      storage_preset_profile: 'zstd_fast'
+      max_bagfile_duration: 900
+      max_bagfile_size: 0         # no size-based split
+
+      # Not a hydroport setting: hydroport left this at the StorageOptions
+      # default of 0, which writes every message to disk inside the
+      # subscription callback. 100 MB is the `ros2 bag record` default and
+      # hands messages to a separate writer thread.
+      max_cache_size: 104857600
