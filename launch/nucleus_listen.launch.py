@@ -13,10 +13,9 @@ configured and started the device.
 Topics land at /rhody/nav/sensors/nucleus_node/*, e.g. imu_common,
 bottom_lock_velocity_common, altimeter_common, depth_odometry_common.
 
-Note the driver has no reconnection logic: auto_connect is a single attempt at
-startup, and a link that drops later is not detected. The systemd unit
-(rhody-nucleus.service) works around the first case by refusing to start until
-the port is reachable; see the README for the second.
+The node reconnects on its own: the packet thread retries every
+reconnect_interval_s, both when the first attempt fails and after a link is
+lost (peer reset, EOF, or keepalive failure). See nucleus_listen.yaml.
 """
 
 import os

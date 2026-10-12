@@ -4,7 +4,10 @@
     fcu_url: "udp://:14550@"
     fcu_protocol: "v2.0"
     system_id: 1
-    component_id: 1
+    # Must differ from the autopilot (1.1): the BlueOS MAVLink router will not
+    # forward a message to an endpoint that has sent from the same sys/comp ID,
+    # so MAVROS as 1.1 stops receiving the FCU ~10 s after its first heartbeat.
+    component_id: 240
     target_system_id: 1
     target_component_id: 1
     
@@ -38,13 +41,15 @@
     
     # Enable plugins for BlueROV
     # Passive perception/nav dataset (no control): sensor + housekeeping only.
-    #   imu            -> imu/data, data_raw, mag, static_pressure (depth), temperatures
+    #   imu            -> imu/data, data_raw, mag, static_pressure (enclosure baro, NOT depth), temperatures
+    #   global_position -> rel_alt (autopilot depth from the Bar30), compass_hdg
     #   local_position -> EKF3 odom/pose/velocity (weak nav baseline for benchmarking)
     #   sys_status     -> state, battery, sys_status, extended_state, statustext
     #   sys_time       -> time_reference, timesync_status (multi-sensor time alignment)
     #   rc_io          -> rc/out thruster PWM (proprioceptive motion prior)
     # Re-add setpoint_*/manual_control/actuator_control/command when doing control work.
     plugin_allowlist:
+      - global_position
       - imu
       - local_position
       - rc_io

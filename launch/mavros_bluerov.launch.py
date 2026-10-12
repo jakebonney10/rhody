@@ -85,7 +85,9 @@ def generate_launch_description():
         ]
     )
     
-    # Pressure to depth conversion node (if you have the python script)
+    # Depth node. Fed from the autopilot's relative altitude (global_position
+    # plugin) rather than mavros/imu/static_pressure, which is the enclosure
+    # barometer on the BlueROV; z is negative below the surface.
     pressure2depth_node = Node(
         package='rhody',
         executable='pressure2depth.py',
@@ -93,7 +95,10 @@ def generate_launch_description():
         namespace=LaunchConfiguration('namespace'),
         output='screen',
         parameters=[
-            {'use_sim_time': LaunchConfiguration('use_sim_time')}
+            {
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'rel_alt_topic': 'mavros/global_position/rel_alt',
+            }
         ],
         remappings=[
             ('pressure', 'mavros/imu/static_pressure'),

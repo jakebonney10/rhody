@@ -4,8 +4,10 @@ import math
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import FluidPressure, Temperature
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from std_msgs.msg import Float64
 
 # -----------------------------
 # Constants (UNESCO 1983 saltwater pressure->depth)
@@ -36,6 +38,7 @@ class Pressure2DepthNode(Node):
         self.declare_parameter('cov_offset', 0.1)
         self.declare_parameter('freshwater', False)
         self.declare_parameter('temperature_topic', '')
+        self.declare_parameter('rel_alt_topic', '')
 
         # Parameters
         self.pressure_topic = self.get_parameter('pressure_topic').get_parameter_value().string_value
@@ -46,24 +49,40 @@ class Pressure2DepthNode(Node):
         self.cov_offset = self.get_parameter('cov_offset').get_parameter_value().double_value
         self.freshwater = self.get_parameter('freshwater').get_parameter_value().bool_value
         self.temperature_topic = self.get_parameter('temperature_topic').get_parameter_value().string_value
+        self.rel_alt_topic = self.get_parameter('rel_alt_topic').get_parameter_value().string_value
 
         # Initialize last known temperature
         self.temperature_c = DEFAULT_TEMP_C
 
         # Subscriptions
-        self.subscription = self.create_subscription(
-            FluidPressure,
-            self.pressure_topic,
-            self.pressure_callback,
-            10
-        )
+        if self.rel_alt_topic:
+            # Take the autopilot's own depth solution (relative altitude, metres,
+            # negative below the surface) instead of converting pressure. MAVROS
+            # static_pressure is SCALED_PRESSURE, which on the BlueROV is the
+            # barometer inside the electronics enclosure, not the Bar30 in the
+            # water, so the pressure path below cannot give vehicle depth there.
+            self.subscription = self.create_subscription(
+                Float64,
+                self.rel_alt_topic,
+                self.rel_alt_callback,
+                qos_profile_sensor_data
+            )
+        else:
+            self.subscription = self.create_subscription(
+                FluidPressure,
+                self.pressure_topic,
+                self.pressure_callback,
+                # MAVROS publishes its IMU-plugin topics BEST_EFFORT; a default
+                # (RELIABLE) subscription never matches and receives nothing.
+                qos_profile_sensor_data
+            )
 
         if self.temperature_topic:
             self.temp_sub = self.create_subscription(
                 Temperature,
                 self.temperature_topic,
                 self.temperature_callback,
-                10
+                qos_profile_sensor_data
             )
             self.get_logger().info(f"Temperature topic subscribed: {self.temperature_topic}")
         else:
@@ -76,7 +95,10 @@ class Pressure2DepthNode(Node):
             10
         )
 
-        self.get_logger().info(f"Pressure2Depth node started. Freshwater mode: {self.freshwater}")
+        if self.rel_alt_topic:
+            self.get_logger().info(f"Pressure2Depth node started. Depth from relative altitude: {self.rel_alt_topic}")
+        else:
+            self.get_logger().info(f"Pressure2Depth node started. Freshwater mode: {self.freshwater}")
 
     def temperature_callback(self, msg):
         self.temperature_c = msg.temperature
@@ -111,8 +133,13 @@ class Pressure2DepthNode(Node):
 
     def pressure_callback(self, msg):
         pressure_pa = msg.fluid_pressure
-        depth = self.convert_pressure(pressure_pa)
+        self.publish_depth(self.convert_pressure(pressure_pa))
 
+    def rel_alt_callback(self, msg):
+        if math.isfinite(msg.data):
+            self.publish_depth(msg.data)
+
+    def publish_depth(self, depth):
         pose_msg = PoseWithCovarianceStamped()
         pose_msg.header.stamp = self.get_clock().now().to_msg()
         pose_msg.header.frame_id = self.relative_frame
