@@ -73,6 +73,13 @@ systemctl --user restart rhody-rosbag.service
 # robot boots headless). Only needs to succeed once.
 sudo loginctl enable-linger "$USER"
 
+# Kernel UDP socket buffers. Fast DDS sizes its sockets from the kernel default
+# and the stock 208 KB overflowed on the recorder (2 MB sonar images and point
+# clouds). See system/60-rhody-udp.conf for the numbers. Processes only pick the
+# new default up when their sockets are created, so the restarts above matter.
+sudo install -m 644 system/60-rhody-udp.conf /etc/sysctl.d/60-rhody-udp.conf
+sudo sysctl -q -p /etc/sysctl.d/60-rhody-udp.conf
+
 echo "Done. Verify with:"
 echo "  systemctl --user status rhody-sprintnavmini.service"
 echo "  journalctl --user -u rhody-sprintnavmini.service -f"

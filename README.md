@@ -589,6 +589,30 @@ subscription to match (`Rosbag2QoS::adapt_request_to_offers`).
   and keep files copyable between dives, but they do not bound total volume —
   budget disk per dive, or add the heavy topics to `topic_ignore_regex`.
 
+### Kernel UDP buffers
+
+`install.sh` installs `system/60-rhody-udp.conf` into `/etc/sysctl.d/`, raising
+`net.core.rmem_default` to 16 MB and `rmem_max` to 64 MB (and the same for
+`wmem`). Fast DDS sizes each socket from the kernel default unless an XML
+profile says otherwise, so with the stock 208 KB the recorder's data socket
+overflowed: a 2.4 MB point cloud or 2 MB sonar image arrives as ~40
+back-to-back 64 KB datagrams over loopback (same-host traffic over the
+512 KB shared-memory segment limit falls back to UDP), and every overflow is a
+lost message on a best-effort topic or a retransmit on a reliable one.
+
+Measured 2026-10-12 in the tank, 60 s windows with a scratch recorder on the
+full topic set: 28,560 datagrams dropped on the recorder socket and 152
+messages reported lost on the transport layer before; 0 and 0 after. Host-wide
+`Udp: RcvbufErrors` went from 39,611 to 10 over the same windows.
+
+- A process only picks the new default up when it creates its sockets, so
+  after changing the file restart the ROS services (or reboot).
+- Check for drops with `grep Udp: /proc/net/snmp` (the `RcvbufErrors`
+  column) and per-socket in the last column of `/proc/net/udp`.
+- The Voyis camera data port (17913) still drops at ~0.5/s after the change;
+  the Discovery SDK appears to size that socket itself. That is device-side
+  traffic, not DDS.
+
 ---
 
 ## Nortek Nucleus 1000 DVL
