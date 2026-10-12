@@ -26,6 +26,14 @@
     # avoids churning the process while the device is powered off.
     reconnect_interval_s: 2.0
 
+    # TF frame the Subsonus data is stamped with. base_link IS the USBL on
+    # rhody2, so usbl_link is the identity child that names the device; see the
+    # TF tree section of the rhody README. The driver default is "imu_link",
+    # which is not a link in rhody2.urdf.xacro, so without this every adnav
+    # message was stamped with a frame that does not exist and no tf2 lookup
+    # against it could resolve.
+    frame_id: "usbl_link"
+
     ################ Serial Communication Parameters
     # Supported Baud Rates: 2.4K, 4.8K, 9.6K, 19.2K, 38.4K, 57.6K.
     # 115.2K, 230.4K, 460.8K, 500K, 576K, 921.6K, 1M, 2M

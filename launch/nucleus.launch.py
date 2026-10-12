@@ -23,7 +23,7 @@ def generate_launch_description():
         package='nucleus_driver_ros2',
         executable='nucleus_node',
         name='nucleus_node',
-        namespace='rhody',
+        namespace='rhody/nav/sensors',
         output='screen',
         parameters=[config]
     )

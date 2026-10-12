@@ -23,6 +23,11 @@
   <exec_depend>xacro</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>voyis_discovery_driver</exec_depend>
+  <!-- hydroport: MCAP bag recorder launched by hydroport_mcap.launch.py.
+       Lives on the submodule's devel branch; master is the upstream
+       template and has no hydroport package at all. -->
+  <exec_depend>hydroport</exec_depend>
+  <exec_depend>nucleus_driver_ros2</exec_depend>
 
   <!-- Isaac ROS: SLAM and dense reconstruction from the Voyis stereo pair.
        Note nvblox_ros rather than the isaac_ros_nvblox metapackage. The

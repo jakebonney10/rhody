@@ -93,20 +93,22 @@ sensors:
   # central altimeter transducer") and from the driver, which parses exactly
   # velocityBeam1..3 / distanceBeam1..3 (nucleus_driver/_parser.py).
   #
-  # ASSUMED, verify before quoting: slant_deg 25.0 and beamwidth_deg 3.0 are
-  # NOT stated in the shipped manual PDF -- it gives frequency, altitude range
-  # and accuracy but no beam geometry. 25 deg is Nortek's published Nucleus1000
-  # figure. The beams render as thin needles either way, so the figure's
-  # message (point measurement, not imaging) is insensitive to a few degrees.
+  # Beam geometry is MEASURED, not assumed: the Nucleus 1000 product datasheet
+  # (Nortek, rev 03/23/2025) gives, under Hardware, "Frequency of operation
+  # 1 MHz / Beam width 3.4 deg / Slanted beam angle 20 deg". That supersedes the
+  # earlier 25 deg / 3.0 deg placeholders, which came from a Nortek web figure
+  # because the operations manual (docs/N3015-033) states neither. The datasheet
+  # quotes a single beam width and does not break out the vertical altimeter
+  # transducer, so altimeter_beamwidth_deg remains assumed.
   nucleus_dvl:
     type: beams
     label: "Nortek Nucleus 1000 DVL"
     n_beams: 3
-    slant_deg: 25.0        # ASSUMED -- see note above
-    beamwidth_deg: 3.0     # ASSUMED -- nominal for a 1 MHz DVL transducer
+    slant_deg: 20.0        # datasheet: "Slanted beam angle 20 deg"
+    beamwidth_deg: 3.4     # datasheet: "Beam width 3.4 deg"
     azimuth_offset_deg: 0.0
     include_altimeter: true
-    altimeter_beamwidth_deg: 4.0
+    altimeter_beamwidth_deg: 4.0   # ASSUMED -- datasheet gives no separate figure
     max_range_m: 50.0      # max altitude, manual Table 2 (min 0.1 m)
     range_note: "0.1-50 m alt."
     color: [0.20, 0.82, 0.55]

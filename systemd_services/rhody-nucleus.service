@@ -1,0 +1,28 @@
+[Unit]
+Description=Rhody Nortek Nucleus 1000 DVL driver (listen-only, streaming port 9002)
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager). Reachability is handled by the wrapper instead, which is the
+# more important problem here: unlike the other drivers, nucleus_driver_ros2 has
+# no reconnection logic at all. auto_connect is a single attempt during node
+# init — on failure it logs an error, keeps running, and never retries, so a
+# plain Restart=always would never fire (the process does not exit).
+# rhody_nucleus.sh therefore probes the stream port first and exits non-zero if
+# the Nucleus is unreachable, which turns Restart=always + RestartSec into the
+# retry loop that the driver is missing.
+# StartLimitIntervalSec=0 disables restart-rate throttling so the service keeps
+# probing indefinitely while the Nucleus is powered off, instead of giving up.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_nucleus.sh
+Restart=always
+# Longer than the other drivers. Each failed attempt is a 3 s connect probe that
+# logs a line and a systemd restart record, so while the Nucleus is powered off
+# this loop is the service's only journal output — 30 s keeps that to a few
+# hundred lines an hour instead of a few thousand, and costs at most 30 s of
+# latency before the driver picks the device up once it is streaming.
+RestartSec=30
+
+[Install]
+WantedBy=default.target

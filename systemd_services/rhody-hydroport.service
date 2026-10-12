@@ -1,0 +1,26 @@
+[Unit]
+Description=Rhody hydroport MCAP bag recorder (records all topics to ~/data/rhody_mcap)
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager) and the recorder needs no network peer — it subscribes to
+# whatever is on the local ROS graph and picks up topics that appear later
+# (topic_discovery_period_ms).
+# The node comes up idle and records nothing until an operator latches true on
+# /rhody/data/logging_on; it reports a settings problem (unwritable directory,
+# bad prefix) as a diagnostic ERROR and stays alive so the parameter can be
+# fixed and retried, rather than exiting. So Restart=always only fires on an
+# actual crash. StartLimitIntervalSec=0 disables restart-rate throttling so the
+# service keeps retrying indefinitely instead of giving up.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_hydroport.sh
+Restart=always
+RestartSec=5
+# On stop, rclcpp's SIGTERM handler unwinds the node, which closes the writer
+# and flushes buffered messages to the current .mcap chunk. Give that room to
+# finish before systemd escalates to SIGKILL, which would truncate the chunk.
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

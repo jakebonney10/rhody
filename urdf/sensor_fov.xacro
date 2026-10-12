@@ -73,7 +73,7 @@
   <!-- Gemini 1200ik FLS: 120 deg azimuth x 20 deg elevation.             -->
   <!-- The 5 deg down-pitch comes from base_to_fls, not from here.        -->
   <!-- ================================================================== -->
-  <xacro:fov_volume name="fls_fov" parent="fls_link"
+  <xacro:fov_volume name="fls_fov" parent="gemini_fls"
                     mesh="gemini_fls_fan" material="fov_gemini">
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </xacro:fov_volume>
@@ -91,7 +91,10 @@
   <joint name="base_to_waterlinked" type="fixed">
     <parent link="base_link"/>
     <child link="waterlinked_link"/>
-    <origin xyz="0.3791 -0.1545 0.2231" rpy="0 ${5.0 * fov_deg} 0"/>
+    <!-- Mirror of the FLS mount, so it carries the same DVL-referenced
+         measurement shifted into the USBL frame. -->
+    <origin xyz="${0.3791 + usbl_to_dvl_x} -0.1545 ${0.2231 + usbl_to_dvl_z}"
+            rpy="0 ${5.0 * fov_deg} 0"/>
   </joint>
 
   <xacro:fov_volume name="waterlinked_fov" parent="waterlinked_link"
@@ -109,10 +112,17 @@
   <!--   rpy = (0, -theta, phi)                                           -->
   <!-- The altimeter is the theta = 0 case, so it needs no rotation.      -->
   <!--                                                                    -->
-  <!-- dvl_slant is ASSUMED at 25 deg - Nortek's published Nucleus1000    -->
-  <!-- figure, not stated in docs/N3015-033. See config/sensor_fov.yaml.  -->
+  <!-- dvl_slant is from the Nucleus 1000 datasheet (rev 03/23/2025),     -->
+  <!-- "Slanted beam angle 20 deg". Not stated in docs/N3015-033, which   -->
+  <!-- is why this was previously an assumed 25 deg.                      -->
+  <!--                                                                    -->
+  <!-- NOTE: this duplicates slant_deg in config/sensor_fov.yaml. The     -->
+  <!-- YAML drives the beam *mesh*; this property drives how the three    -->
+  <!-- beam instances are *rotated*. They must be kept in step - they     -->
+  <!-- were not, leaving the meshes at one angle and the orientations at  -->
+  <!-- another.                                                           -->
   <!-- ================================================================== -->
-  <xacro:property name="dvl_slant" value="25.0"/>
+  <xacro:property name="dvl_slant" value="20.0"/>
 
   <link name="dvl_fov">
     <xacro:macro name="dvl_beam" params="phi">
@@ -139,10 +149,15 @@
     </visual>
   </link>
 
-  <joint name="dvl_link_to_dvl_fov" type="fixed">
-    <parent link="dvl_link"/>
+  <!-- nucleus_dvl is the instrument frame (z-down, see rhody2.urdf.xacro), but
+       the beam meshes are generated opening along -z in a z-up frame. Undo
+       the instrument roll here so the drawn beams still point at the seabed.
+       Negating y maps the beam azimuths {0,120,240} onto themselves, so the
+       drawn pattern is unchanged. -->
+  <joint name="nucleus_dvl_to_dvl_fov" type="fixed">
+    <parent link="nucleus_dvl"/>
     <child link="dvl_fov"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0 0 0" rpy="${pi} 0 0"/>
   </joint>
 
 </robot>

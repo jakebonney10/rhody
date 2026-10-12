@@ -18,6 +18,16 @@
     auto_connect: true
     auto_start: true
 
+    # --- Reconnection ---
+    # Retry forever, and re-send sensor_configs + restart measurement on every
+    # reconnect, since a power-cycled device has lost them.
+    reconnect_interval_s: 2.0
+    tcp_keepalive_idle_s: 5
+
+    # Enabled here, unlike the listen-only config: this node starts measurement
+    # itself, so a silence this long means the link is dead rather than idle.
+    data_timeout_s: 5.0
+
     # --- Sensor Configuration Commands ---
     sensor_configs:
       # IMU

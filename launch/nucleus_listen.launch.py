@@ -1,11 +1,22 @@
 #!/usr/bin/env python3
 
 """
-Launch file for the Nortek Nucleus DVL driver in listen-only (streaming) mode.
+Launch file for the Nortek Nucleus 1000 DVL driver in listen-only (streaming)
+mode, under the rhody/nav/sensors namespace (alongside sprintnav and adnav).
 
 Connects to the Nucleus read-only streaming port (9002) and only parses and
 publishes incoming data. Device configuration and start/stop are handled
-externally (e.g. by the Nortek software on the command port 9000).
+externally (e.g. by the Nortek software on the command port 9000) — this node
+never writes to the socket, so it publishes nothing until some other client has
+configured and started the device.
+
+Topics land at /rhody/nav/sensors/nucleus_node/*, e.g. imu_common,
+bottom_lock_velocity_common, altimeter_common, depth_odometry_common.
+
+Note the driver has no reconnection logic: auto_connect is a single attempt at
+startup, and a link that drops later is not detected. The systemd unit
+(rhody-nucleus.service) works around the first case by refusing to start until
+the port is reachable; see the README for the second.
 """
 
 import os
@@ -26,7 +37,7 @@ def generate_launch_description():
         package='nucleus_driver_ros2',
         executable='nucleus_node',
         name='nucleus_node',
-        namespace='rhody',
+        namespace='rhody/nav/sensors',
         output='screen',
         parameters=[config]
     )

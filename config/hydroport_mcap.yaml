@@ -1,0 +1,36 @@
+/**:
+  ros__parameters:
+    # hydroport bag_recorder on Rhody — records every discovered topic into a
+    # split .mcap bag. The node comes up idle and records nothing until an
+    # operator latches `true` on <namespace>/logging_on; see
+    # launch/hydroport_mcap.launch.py for the topic names.
+    #
+    # logging.directory is NOT set here on purpose — the launch file supplies it
+    # from $HOME (default ~/data/rhody_mcap) so the path follows whichever user
+    # the service runs as. Override at launch with log_dir:=/path, or live with
+    # `ros2 param set`. Setting it here too would just shadow confusingly.
+
+    logging:
+      file_prefix: 'rhody_'     # -> rhody_<YYYY-MM-DDTHHMMSSZ>/ (UTC)
+
+    # Extended regex of topics to leave out. Hidden /__* topics and the
+    # parameter-event firehose are noise; everything else — including /tf,
+    # /diagnostics, /rosout and the sonar/camera streams — is recorded.
+    # To drop a heavy stream, add it here, e.g.:
+    #   '^(/__.*|/parameter_events$|/rhody/perception/sensors/voyis/.*/image_raw$)'
+    topic_ignore_regex: '^(/__.*|/parameter_events$)'
+
+    # How often the recorder rescans the graph for topics that came online
+    # after recording started.
+    topic_discovery_period_ms: 100
+
+    # Accepted for interface parity with hydroport's mcap_logger node; the
+    # rosbag2 Recorder has no separate initial-discovery delay, so this is
+    # declared but unused.
+    initial_discovery_delay_ms: 1000
+
+    # mcap storage. zstd_fast keeps compression off the critical path on the
+    # Orin; 900 s splits bound the damage from a power cut to one chunk and
+    # keep single files small enough to copy off between dives.
+    storage_preset_profile: 'zstd_fast'
+    max_bag_duration_seconds: 900

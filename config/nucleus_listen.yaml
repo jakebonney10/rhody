@@ -24,9 +24,37 @@
     auto_connect: true
     auto_start: false
 
+    # --- Reconnection ---
+    # Retry the connection forever at this interval, both at startup and after a
+    # link is lost. The driver used to connect exactly once and then run on with
+    # no connection and no retry.
+    reconnect_interval_s: 2.0
+
+    # Keepalive, not a data timeout, is what detects link loss in this mode: the
+    # kernel probes the peer, so a pulled cable becomes a socket error in about
+    # 5 + 3*2 = 11 s instead of a socket that blocks forever.
+    tcp_keepalive_idle_s: 5
+
+    # Deliberately DISABLED here. In listen-only mode the device is configured
+    # and started by an external client, so a long silence is perfectly normal —
+    # it just means nobody has started measurement yet. Treating that as a dead
+    # link would reconnect every few seconds forever for no reason. Set this to
+    # e.g. 5.0 only if you know measurement is meant to be running continuously.
+    data_timeout_s: 0.0
+
     # --- Sensor Configuration Commands ---
-    # Empty: configuration is owned by the external client on the command port.
-    sensor_configs: []
+    # Configuration is owned by the external client on the command port, so
+    # there is nothing to send here. It cannot be written as [] though: the
+    # driver declares this parameter by handing rclpy a bare ParameterValue as
+    # the default, which rclpy rejects, so the parameter only ever gets a type
+    # from this file — and an empty YAML sequence carries no type, leaving it
+    # uninitialized and crashing the node on startup with
+    # ParameterUninitializedException. A single empty string is the smallest
+    # value that types the array. In listen-only mode (tcp_port 9002) the
+    # driver skips sensor_configs entirely, so nothing is sent; it only logs
+    # "sensor_configs is set but will be ignored in listen-only mode", which is
+    # expected here.
+    sensor_configs: ['']
 
     # Fluid Density (used only for pressure -> depth conversion of incoming data)
     fluid_density: 1000.0

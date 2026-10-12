@@ -1,0 +1,17 @@
+[Unit]
+Description=Rhody robot_state_publisher (vehicle TF tree from rhody2.urdf.xacro)
+# No network-online ordering and no device to wait for: this unit only turns the
+# URDF into TF, so it can come up immediately and should stay up whenever the
+# vehicle is powered. Everything geometric depends on it - without it the only
+# TF on the graph is mavros's own map_ned/odom_ned/base_link_frd aliases, so no
+# sensor frame resolves and bags record no extrinsics at all.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_description.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

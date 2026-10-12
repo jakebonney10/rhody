@@ -1,8 +1,113 @@
 # rhody
 
-run `ros2 run tf2_tools view_frames` to generate a diagram of the TF tree. 
+run `ros2 run tf2_tools view_frames` to generate a diagram of the TF tree.
 
-For static transform to view tf run `ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 map rhody/base_link`.
+## TF tree
+
+`base_link` **is the USBL**, and follows REP-103 (x forward, y port, z up).
+
+```
+base_link (= USBL)
+├─ usbl_link          identity
+├─ nucleus_dvl        Nortek Nucleus 1000
+├─ sprintnav_link     SPRINT-Nav Mini      *** PROVISIONAL, NOT MEASURED ***
+├─ gemini_fls         Gemini 1200ik FLS, 5 deg down
+├─ voyis_left_link  ──┬─ voyis_left_optical
+│                     └─ voyis_imu         (identity placeholder)
+└─ voyis_right_link ─── voyis_right_optical
+```
+
+The vehicle is published by `rhody-description.service` (`robot_state_publisher`
+on `rhody2.urdf.xacro`, global namespace). Without it the only TF on the graph is
+mavros's own `map_ned`/`odom_ned`/`base_link_frd` aliases, so no sensor frame
+resolves and **recorded bags contain no extrinsics at all** — worth checking
+before a dive, since nothing warns you.
+
+Link names match what each driver actually publishes as its `frame_id`
+(`nucleus_dvl`, `gemini_fls`), and the `sensor_fov.yaml` sections and
+`meshes/fov/*.stl` prefixes, so there is one name per sensor across the repo.
+The old generic `dvl_link`/`fls_link` are gone: with two DVLs aboard, "the DVL"
+is ambiguous.
+
+### Sensor frame policy (REP-145)
+
+Every sensor driver on Rhody follows [REP-145](https://www.ros.org/reps/rep-0145.html),
+and the rule is checked against each driver below. Stated once so the next
+driver gets built the same way:
+
+> **Body-frame measurements are published exactly as the device reports them,
+> in the device's own axes as given in its manual.** `frame_id` names that
+> frame, and the rotation from it to `base_link` is declared in
+> `rhody2.urdf.xacro` — never applied inside the driver. (REP-145: *"all data
+> should be published by the driver as it is reported by the device. Any
+> subsequent modifications to the data (e.g. filtering, transformations) should
+> be delegated to a downstream consumer."*)
+>
+> Three things are **not** covered by "as reported", because TF cannot reach
+> them: the **world reference of an orientation** is converted to ENU in the
+> driver (robot_localization rejects NED); **world-referenced quantities**
+> (depth, fixes, INS velocity-over-ground) are ENU per REP-105; and **SI
+> units, invalid-value sentinels, and each message's own contract** (e.g.
+> `Dvl.msg` mandates FRD, covariance fields are variances) remain the
+> driver's job.
+
+What that means per sensor, and the frame each one is declared in:
+
+| sensor | body vectors | declared axes | orientation world side |
+|---|---|---|---|
+| Nucleus (`nucleus_dvl`) | as reported | FRD, 180° roll from `base_link` | n/a (no std orientation published) |
+| SPRINT-Nav (`sprintnav_link`) | as reported | FRD, 180° roll | NED→ENU in driver |
+| Subsonus (`usbl_link`) | as reported | FRD, 180° roll (device set to *Subsea* alignment) | NED→ENU in driver |
+| Voyis (`voyis_*_optical`) | as reported | optical, per REP-103 suffix frame | — |
+| Gemini (`gemini_fls`) | sonar angles, consumer-interpreted | 5° down pitch | — |
+| mavros | converts to ENU/FLU itself | `base_link_frd`/`map_ned` aliases | ENU |
+
+mavros is upstream and the one accepted exception: it converts in the driver
+and publishes `_frd`/`_ned` alias frames, which is also where those suffix
+names come from (REP-103 itself defines only `_optical` and `_ned`).
+
+The cost this policy accepts, with eyes open: data is only correct when the
+frame is declared **and** `rhody-description.service` is running. Raw FRD
+stamped `nucleus_dvl` with no URDF loaded is wrong and nothing flags it. That
+service existing is part of the policy, not an optional extra.
+
+### Why base_link is the USBL
+
+All hull offsets were originally measured in Shapr3D *relative to the Nucleus
+DVL*, and `base_link` sat there (as on Rhody 1). The Nucleus is a temporary test
+fit for the two-DVL comparison, and a `base_link` defined by a sensor that gets
+removed leaves every other extrinsic referred to a point no longer on the
+vehicle. So `base_link` moved to the USBL, which is permanent.
+
+The original measurements are kept verbatim in `rhody2.urdf.xacro` and shifted
+into the USBL frame by a single pair of properties (`usbl_to_dvl_x/z`), so
+re-measuring the USBL↔DVL offset is a one-line change. The move is a pure
+translation: every sensor-to-sensor transform is unchanged, which is also why
+the FOV meshes and the coverage-overlap figures did not need regenerating.
+
+### Known gaps
+
+- **`sprintnav_link` is provisional and not measured.** It is placed 8 in
+  (0.2032 m) aft of the Nucleus on the centerline, with z assumed equal (both
+  are bottom-mounted) and orientation assumed aligned. This bounds the two-DVL
+  comparison: the heads are separated by a lever arm `r`, so under rotation they
+  legitimately differ by `omega x r` — ~3.5 cm/s at 0.2 m and 10 deg/s, the same
+  order as DVL accuracy. Measure it before trusting any DVL-vs-DVL result.
+- **`map` and `odom` are disconnected islands.** `gps2map.launch.xml` publishes
+  `utm_local -> map -> odom` and the EKF/`mru_transform` would publish
+  `odom -> base_link`, but none of those run as services, so under the service
+  deployment the vehicle has geometry but no localisation.
+- adnav now publishes into `usbl_link` — `adnav_driver` gained a read-only
+  `frame_id` parameter (it was hardcoded to `imu_link`, a link rhody2 does not
+  declare, so no lookup against Subsonus data could resolve). Set in
+  `config/adnav_tcp_client.yaml`. The driver default is unchanged, so this is
+  the only config that needs it. **Not yet pinned**: the fix is committed on the
+  submodule's `devel` branch but the superproject still records the previous
+  commit.
+- `voyis_imu` is still an identity placeholder pending the factory extrinsics.
+- `rhody_description.launch.py` still defaults to `rhody.urdf.xacro`, the
+  **Rhody 1** description. The service passes `model:=` explicitly; do the same
+  when launching it by hand.
 
 ---
 
@@ -58,7 +163,7 @@ from the meshes:
 |---|---|
 | `config/sensor_fov.yaml` | FOV angles, ranges, colours, and the provenance of every number |
 | `scripts/gen_fov_meshes.py` | bakes that YAML into `meshes/fov/*.stl` |
-| `urdf/sensor_fov.xacro` | hangs those meshes off the sensor links, included only when `fov:=true` |
+| `urdf/sensor_fov.xacro` | hangs those meshes off the sensor links, included only when `fov:=true`. Also owns the DVL beam *rotations* via its own `dvl_slant` property, which duplicates `slant_deg` in the YAML — keep the two in step |
 | `scripts/render_fov_figure.py` | offscreen VTK render + overlap numbers |
 
 Extrinsics are never duplicated: the FOV solids are generated in each sensor's
@@ -82,8 +187,15 @@ python3 src/rhody/scripts/gen_fov_meshes.py
   its mounting pose are placeholders — the FLS mount mirrored to starboard. Any
   quantitative claim about FLS/3D-sonar overlap depends on replacing that with
   measured offsets.
-- **The DVL beam geometry is assumed**: 25° slant, 3° beamwidth. Three beams is
-  confirmed (manual + driver), but `docs/N3015-033` gives no beam angles.
+- **The DVL beam geometry is now from the datasheet**, not assumed: 20° slant,
+  3.4° beamwidth, 1 MHz (Nucleus 1000 datasheet, rev 03/23/2025, under
+  Hardware). The previous 25°/3.0° placeholders came from a Nortek web figure
+  because `docs/N3015-033` gives no beam angles. Three slanted beams plus a
+  dedicated vertical altimeter transducer is confirmed by both documents and
+  the driver. The altimeter's own beamwidth is still assumed — the datasheet
+  quotes one beam width and does not break the vertical beam out separately.
+  Changing this did not move the overlap numbers below: the DVL needles are not
+  part of that pairwise comparison.
 - Voyis FOV (73.2° square) is derived, not assumed — from the factory intrinsics
   `f = 1895.675 px` on a 2816² sensor in `Calibration_180114031/*.xml`.
 - `fov:=true` is opt-in and off by default, so SLAM/nvblox/EKF pipelines see the
@@ -385,7 +497,203 @@ real fix belongs in `gemini_sonar_driver`: install the vendored SDK libraries
 into a private subdirectory reached via the `$ORIGIN` RPATH so they never reach
 the global search path.
 
-**Stale `template_pkg` in the install space.** `source install/setup.bash`
-prints `not found: ".../install/template_pkg/share/template_pkg/local_setup.bash"`
-from a package that no longer exists. Harmless but noisy;
-`rm -rf install/template_pkg` clears it.
+**Stale `template_pkg` in the install space.** Fixed — this was the
+`src/hydroport` submodule sitting on its upstream `master`, which is the package
+*template* (`template_pkg`). The submodule now pins `devel`, which carries the
+real `hydroport` package. If an old workspace still prints
+`not found: ".../install/template_pkg/share/template_pkg/local_setup.bash"` on
+`source install/setup.bash`, `rm -rf install/template_pkg build/template_pkg`
+clears the leftovers.
+
+---
+
+## MCAP logging (hydroport)
+
+Records every topic on the graph into split `.mcap` bags, as a user systemd
+service alongside the sensor drivers. The recorder is **remotely operated**: the
+service is always up, but it writes nothing until an operator turns it on.
+
+```bash
+# start recording
+ros2 topic pub --once --qos-durability transient_local --qos-reliability reliable \
+  /rhody/data/logging_on std_msgs/msg/Bool "{data: true}"
+
+# stop (closes and flushes the current bag)
+ros2 topic pub --once --qos-durability transient_local --qos-reliability reliable \
+  /rhody/data/logging_on std_msgs/msg/Bool "{data: false}"
+```
+
+Both the control topic and the `/rhody/data/bag_recorder/logging_on` state
+echo are `transient_local`, so the setting is latched — the recorder picks it up
+even if it (re)starts after the command was sent, and a late-joining Foxglove
+sees the current state.
+
+Status is on the global `/diagnostics` topic at 1 Hz, next to the other rhody
+drivers:
+
+| Level | Meaning |
+|---|---|
+| `OK` | `Recording N topics` — plus the topic count and output path as key/values |
+| `WARN` | `Not recording — logging OFF` (idle is deliberately a WARN, so a dive with the logger off is visible) |
+| `ERROR` | A setting is blocking recording — unwritable `logging.directory`, bad prefix. The node stays alive; fix the parameter and it retries |
+
+Bags land in `~/data/rhody_mcap/rhody_<UTC ISO stamp>/`, split every 900 s, with
+zstd chunk compression inside the mcap. Override the location per-run with
+`log_dir:=`, or live with `ros2 param set /rhody/data/bag_recorder
+logging.directory /some/path` — changing it while recording closes the current
+bag and opens a new one at the new path.
+
+| File | Owns |
+|---|---|
+| `config/hydroport_mcap.yaml` | prefix, ignore regex, discovery period, split length, compression preset |
+| `launch/hydroport_mcap.launch.py` | namespace, and the output directory (from `$HOME`, so it follows the service user) |
+| `systemd_services/rhody-hydroport.service` | the unit |
+
+### Why `bag_recorder` and not `mcap_logger`
+
+hydroport ships two mcap-writing nodes and rhody runs the newer one.
+`mcap_logger` builds its own generic subscriptions on a fixed `KeepLast(10)`
+RELIABLE profile, with `/tf` and `/tf_static` hand-special-cased. Any publisher
+offering BEST_EFFORT reliability or TRANSIENT_LOCAL durability — the Gemini and
+Voyis image streams — is then QoS-incompatible and **silently records nothing**;
+no error is logged, the topic simply never appears in the bag.
+`bag_recorder` wraps `rosbag2_transport::Recorder`, the class behind
+`ros2 bag record`, which queries each publisher's offered QoS and adapts the
+subscription to match (`Rosbag2QoS::adapt_request_to_offers`).
+
+### Gotchas this setup already handles
+
+- **The submodule's default branch is useless.** `SeawardScience/hydroport`'s
+  `master` is the upstream package *template* — `template_pkg`, no `hydroport`
+  package at all. The logger nodes live on `devel`, which is what
+  `.gitmodules` pins (`branch = devel`) and what the recorded commit points at.
+  This is also what used to produce the stale `install/template_pkg`
+  `local_setup.bash` warning on `source install/setup.bash`.
+- **Stopping the service must go through systemd, not a bare kill.**
+  `kill -TERM` on the `ros2 launch` process alone kills the launcher and
+  *orphans* the recorder, which keeps writing forever and never closes the bag —
+  leaving a directory with an `.mcap` chunk and no `metadata.yaml`, which
+  `ros2 bag info` cannot open. `systemctl --user stop` signals the whole
+  cgroup, so the node itself gets SIGTERM, unwinds, and flushes; measured
+  under a second. `TimeoutStopSec=60` in the unit is headroom for that flush,
+  since a SIGKILL mid-chunk truncates the bag.
+- **An unfinalized bag is not necessarily lost** — `ros2 bag reindex <dir> -s mcap`
+  rebuilds `metadata.yaml` from the chunks.
+- **`compression_format: ""` in `metadata.yaml` is correct.** `zstd_fast` is an
+  *mcap storage* preset — zstd is applied per chunk inside the file, which is
+  not rosbag2's file/message compression layer. Confirm with
+  `strings <bag>.mcap | grep -m1 zstd`, not from the metadata.
+- **Recording everything is the default and it adds up.** The ignore regex only
+  drops hidden `/__*` topics and `/parameter_events`; the sonar and camera
+  streams are recorded in full. 900 s splits bound the loss from a power cut
+  and keep files copyable between dives, but they do not bound total volume —
+  budget disk per dive, or add the heavy topics to `topic_ignore_regex`.
+
+---
+
+## Nortek Nucleus 1000 DVL
+
+Runs as a user systemd service in **listen-only** mode: the driver attaches to
+the Nucleus read-only streaming port (9002), parses whatever is already being
+streamed, and never writes to the socket. Configuration and start/stop stay with
+whatever client owns the command port (9000) — normally the Nortek software.
+
+```bash
+systemctl --user status rhody-nucleus.service
+journalctl --user-unit rhody-nucleus.service -f    # note: --user-unit, not --user -u
+```
+
+DVL data is published three ways: `dvl` and `water_track_dvl`
+(`marine_acoustic_msgs/Dvl`, the cross-vendor message sprintnav also uses, with
+the per-beam ranges/velocities/quality), `bottom_lock_velocity_common` and
+`water_track_velocity_common` (`TwistWithCovarianceStamped`), and the raw
+Nortek-shaped `*_packets`. **The Dvl and the Twist deliberately disagree on
+axes**: `Dvl.msg` documents its own FRD convention, which is what the Nucleus
+reports natively, while the Twist must match its REP-103 frame and so has y and
+z negated. sprintnav splits it the same way — do not "fix" one to match the
+other.
+
+Topics are at `/rhody/nav/sensors/nucleus_node/*`, alongside `sprintnav/` and
+`adnav/` in the same namespace. The `*_packets` topics are the raw Nortek
+messages (custom types from the driver's `interfaces` package); the `*_common`
+topics are the `sensor_msgs`/`geometry_msgs` equivalents — `imu_common`,
+`magnetic_common`, `pressure_common`, `temperature_common`, `sound_speed_common`,
+`depth_odometry_common`, `bottom_lock_velocity_common`,
+`water_track_velocity_common`, `altimeter_common` and `altimeter_beam{1,2,3}_common`.
+
+### Diagnostics
+
+On the `feature/streaming-only-reconnect` branch the driver publishes to the
+global `/diagnostics` like the other sensors (hardware ID `nucleus_1000`).
+`Connection` and `Decoder` mirror `sprintnav_driver`/`adnav_driver`; `Bottom
+Track` is the DVL-specific one, since bottom lock is what says whether the
+device is usable for navigation.
+
+| Task | OK | WARN | ERROR / STALE |
+|---|---|---|---|
+| `Connection` | `receiving` | `connected, no data - is measurement started?` | `not connected`, or `data timeout` in full-control mode |
+| `Decoder` | `decoding N packets` | `N unrecognised packet(s)` — firmware/parser mismatch | STALE until the first packet |
+| `Bottom Track` | `bottom lock` | `no bottom lock` (off-bottom/out of range) | STALE until the first bottom-track packet |
+
+`Connection` also carries the endpoint, seconds since last data, connect count
+and the reconnect/keepalive settings. Note that in listen-only mode a silence is
+a **WARN, not an ERROR** — an external client owns start/stop, so an idle device
+is not a fault. For the same reason the task's staleness threshold does not reuse
+`data_timeout_s`, which is `0.0` in that mode.
+
+| File | Owns |
+|---|---|
+| `config/nucleus_listen.yaml` | IP, stream port 9002, frames, fluid density, reconnect/keepalive |
+| `launch/nucleus_listen.launch.py` | namespace `rhody/nav/sensors` |
+| `systemd_services/rhody-nucleus.service` | the unit, and the reachability retry loop |
+| `systemd_services/rhody_nucleus.sh` | the pre-launch port probe |
+
+`config/nucleus.yaml` + `launch/nucleus.launch.py` are the full-control variant,
+kept for manual use: they log into port 9000, push the `SETIMU`/`SETAHRS`/
+`SETBT`/`SETTRIG` block and auto-start measurement. Nothing runs them by default
+— the service deliberately does not own the device.
+
+### Gotchas this setup already handles
+
+- **The driver now reconnects, but only on the workspace branch.** Upstream
+  `auto_connect` is a single attempt during node init: on failure the node logs
+  an error, *keeps running* with no connection, and never retries, and a link
+  that drops later is never noticed because the read loop just keeps timing out.
+  Neither case exits, so `Restart=always` could not paper over it. The submodule
+  branch `feature/streaming-only-reconnect` moves (re)connection into the packet
+  thread — see `reconnect_interval_s`, `tcp_keepalive_idle_s` and
+  `data_timeout_s` in the config. **This is not yet merged or pinned**: the
+  superproject still records the pre-reconnect commit, pending a hardware test.
+- **`rhody_nucleus.sh` probes the port before launching.** With reconnect in the
+  driver this is no longer load-bearing, but it is kept as cheap boot ordering:
+  it exits non-zero while the Nucleus is unreachable so systemd retries. A
+  service sitting in `activating (auto-restart)` with the device powered off is
+  **working as intended**, not failing.
+- **`data_timeout_s` is off in listen-only mode on purpose.** In that mode an
+  external client owns start/stop, so a long silence just means nobody has
+  started measurement — it is not a dead link. Enabling the timeout there makes
+  the node reconnect every few seconds forever against a perfectly healthy
+  device (measured: 5 reconnects in 23 s at `data_timeout_s: 3.0`). Link loss is
+  detected by TCP keepalive plus an `SO_ERROR` / `MSG_PEEK` EOF check instead,
+  which is what `tcp_keepalive_idle_s` tunes. `nucleus.yaml` (full control) does
+  enable the timeout, because there the node starts measurement itself and
+  silence really is a fault.
+- **The `nucleus_driver` Python library is not installed by colcon.** The ROS
+  node does `from nucleus_driver import NucleusDriver`, but that library is the
+  plain-Python package next to it in the submodule (`nucleus_driver/nucleus_driver/`),
+  which is pip-shaped, not ament-shaped. This image has no pip at all and is PEP
+  668 externally managed, so `install.sh` instead drops a `.pth` file naming the
+  library's `src/` into the user site-packages directory. No sudo, no pip, and it
+  follows the submodule checkout. Without it the node dies immediately with
+  `ModuleNotFoundError: No module named 'nucleus_driver'`. Only `pyserial` is
+  actually needed at runtime (present); `cmd2`, also in `requirements.txt`, is
+  used solely by the library's console entry point.
+- **`sensor_configs: []` crashes the node on startup.** The driver declares that
+  parameter by handing rclpy a bare `ParameterValue` as the default, which rclpy
+  rejects, so the parameter gets its type *only* from the params file — and an
+  empty YAML sequence carries no type. The result is
+  `ParameterUninitializedException: sensor_configs` before the node ever
+  connects. `nucleus_listen.yaml` uses `['']`, the smallest value that types the
+  array; listen-only mode skips `sensor_configs` anyway, so nothing is sent and
+  the node just logs "sensor_configs is set but will be ignored in listen-only
+  mode". Expect that warning.
