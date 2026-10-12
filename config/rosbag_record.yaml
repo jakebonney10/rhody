@@ -11,8 +11,18 @@
     # and passes it on the command line. That is hydroport's logging.directory
     # + logging.file_prefix.
     #
-    # There is no logging_on topic: the service records from the moment it
-    # starts until it is stopped (systemctl --user start|stop rhody-rosbag).
+    # The node is remotely operated, like hydroport was: it comes up *paused*
+    # and writes nothing until an operator calls its resume service. There is
+    # no logging_on topic; the controls are std services under the node name
+    # (callable from a Foxglove Call Service panel, request `{}`):
+    #
+    #   ros2 service call /rhody/data/rosbag2_recorder/resume    rosbag2_interfaces/srv/Resume
+    #   ros2 service call /rhody/data/rosbag2_recorder/pause     rosbag2_interfaces/srv/Pause
+    #   ros2 service call /rhody/data/rosbag2_recorder/is_paused rosbag2_interfaces/srv/IsPaused
+    #
+    # Pause/resume write into the one bag directory opened when the service
+    # started; a new directory needs a service restart. Nothing is published
+    # on /diagnostics — is_paused is the only indication of the state.
 
     record:
       all_topics: true            # hydroport: record_options.all_topics
@@ -37,7 +47,10 @@
       # No terminal under systemd; without this the recorder tries to read
       # pause/resume keys from stdin.
       disable_keyboard_controls: true
-      start_paused: false
+
+      # Come up idle so that enabling the unit at boot does not start filling
+      # the disk; see the resume/pause services at the top of this file.
+      start_paused: true
 
     storage:
       storage_id: 'mcap'

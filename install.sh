@@ -60,11 +60,14 @@ systemctl --user restart rhody-description.service
 systemctl --user enable rhody-nucleus.service
 systemctl --user restart rhody-nucleus.service
 
-# MCAP bag recorder. Enabled so it is up on every boot, but it comes up idle
-# and writes nothing until an operator latches true on /rhody/data/logging_on,
-# so enabling it does not start filling the disk.
-systemctl --user enable rhody-hydroport.service
-systemctl --user restart rhody-hydroport.service
+# MCAP bag recorder (stock rosbag2). Enabled so it is up on every boot, but it
+# comes up paused and writes nothing until an operator calls
+# /rhody/data/rosbag2_recorder/resume, so enabling it does not start filling
+# the disk. It replaces the hydroport recorder, which is left installed but
+# disabled: the two must not run together (both record every topic).
+systemctl --user disable --now rhody-hydroport.service
+systemctl --user enable rhody-rosbag.service
+systemctl --user restart rhody-rosbag.service
 
 # Allow user services to run at boot without an active login session (the
 # robot boots headless). Only needs to succeed once.
@@ -77,8 +80,8 @@ echo "  systemctl --user status rhody-adnav.service"
 echo "  journalctl --user -u rhody-adnav.service -f"
 echo "  systemctl --user status rhody-mavros.service"
 echo "  journalctl --user -u rhody-mavros.service -f"
-echo "  systemctl --user status rhody-hydroport.service"
-echo "  journalctl --user -u rhody-hydroport.service -f"
+echo "  systemctl --user status rhody-rosbag.service"
+echo "  journalctl --user -u rhody-rosbag.service -f"
 echo "  systemctl --user status rhody-nucleus.service"
 echo "  journalctl --user -u rhody-nucleus.service -f"
 echo "  systemctl --user status rhody-description.service"

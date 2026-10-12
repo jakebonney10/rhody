@@ -1,13 +1,15 @@
 [Unit]
-Description=Rhody rosbag2 MCAP recorder (records all topics to ~/data/rhody_mcap while running)
+Description=Rhody rosbag2 MCAP recorder (records all topics to ~/data/rhody_mcap; starts paused)
 # No network-online ordering: this is a --user unit (that target lives in the
 # system manager) and the recorder needs no network peer — it subscribes to
 # whatever is on the local ROS graph and picks up topics that appear later
 # (record.topic_polling_interval).
-# Unlike rhody-hydroport there is no logging_on topic: this is the stock
-# rosbag2 recorder, so it records from start to stop and each start opens a new
-# bag directory. Start and stop the unit to start and stop logging. Do not run
-# it alongside rhody-hydroport — both would record every topic.
+# This is the stock rosbag2 recorder. It comes up paused (record.start_paused
+# in config/rosbag_record.yaml) and writes nothing until an operator calls
+# /rhody/data/rosbag2_recorder/resume; .../pause stops writing again. Each
+# start of the unit opens one new bag directory that all of that run's
+# resume/pause sessions go into. It replaces rhody-hydroport and must not run
+# alongside it — both would record every topic — hence Conflicts= below.
 # StartLimitIntervalSec=0 disables restart-rate throttling so a crashed
 # recorder keeps being brought back (into a fresh bag) instead of giving up.
 StartLimitIntervalSec=0
