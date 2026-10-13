@@ -28,24 +28,15 @@
               The bottom-plate photo puts the USBL 16-24 cm forward of the
               SPRINT-Nav, so it is plausible. *** CONFIRM ***
 
-       2. The Shapr3D model, measured relative to the Nucleus DVL in its
-          ORIGINAL design position (the round cutout aft of where the head
-          now sits), because base_link used to be there (as on Rhody 1).
-          The Gemini and Voyis still come from this chain, shifted into the
-          USBL frame by usbl_to_cad_dvl_*: the CAD's USBL -> DVL offset,
-          dX 3.0246 in forward, dZ 12.1969 in below. That is NOT where the
-          Nucleus is now. The head moved on 2026-10-12 and the cameras did
-          not, so the two must stay decoupled.
-
-       The two sets disagree on where that original Nucleus position is:
-       CAD (7.7, 0, -31) cm vs tape (-1, +6, -41.5) cm from the USBL. The z
-       gap is about the Subsonus's own height, so the CAD point is probably
-       the USBL base and the tape the transducer; the x/y gap is not
-       explained. Until USBL -> Voyis (or Gemini) is tape-measured directly,
-       the camera and sonar extrinsics are only good to ~10 cm against the
-       DVLs and USBL.
-       TODO: tape USBL -> Voyis left camera (x, y, z) and re-anchor the CAD
-       chain on it.
+       2. The Shapr3D model, for the Gemini and Voyis. Those were measured
+          relative to the Nucleus DVL in its ORIGINAL design position (the
+          round cutout aft of where the head now sits), because base_link
+          used to be there (as on Rhody 1). usbl_to_cad_dvl_* is the CAD's
+          USBL -> DVL offset (dX 3.0246 in forward, dZ 12.1969 in below) and
+          exists only to shift those CAD numbers into the USBL frame. It is
+          NOT where the Nucleus is now: the head moved on 2026-10-12 and the
+          cameras and sonar did not, so their USBL-relative positions are
+          unchanged from before and this property must not follow the head.
        ================================================================== -->
   <xacro:property name="usbl_to_cad_dvl_x" value="0.0768"  scope="global"/>
   <xacro:property name="usbl_to_cad_dvl_z" value="-0.3098" scope="global"/>

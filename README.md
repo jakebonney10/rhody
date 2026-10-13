@@ -86,24 +86,17 @@ The Shapr3D measurements for the Gemini and Voyis are kept verbatim in
 properties, `usbl_to_cad_dvl_x/z`: the CAD's USBL→DVL offset, i.e. the
 Nucleus's *original* position (the round cutout in the bottom plate). The
 Nucleus itself was moved 15.5 cm forward of that cutout on 2026-10-12, so the
-property deliberately no longer tracks the head; the cameras and sonar did not
-move. The DVLs and the iLBL are placed from tape measurements taken the same
-day (see the header comment in the xacro for the numbers and what each one was
-measured against).
-
-**Open discrepancy.** CAD puts the original Nucleus position at (7.7, 0, −31) cm
-from the USBL; the tape puts it at (−1, +6, −41.5) cm. The z gap is about the
-Subsonus's own height (CAD base vs tape to the transducer), the x/y gap is not
-explained. Until USBL→Voyis (or Gemini) is taped directly, treat the camera and
-sonar positions as good to ~10 cm relative to the DVLs and USBL.
+property deliberately no longer tracks the head. The cameras and sonar did not
+move and their USBL-relative positions are unchanged. The DVLs and the iLBL are
+the only links placed from the 2026-10-12 tape measurements (see the header
+comment in the xacro for the numbers and what each one was measured against).
 
 ### Known gaps
 
-- **Three tape readings still need confirming** (2026-10-12): the SPRINT-Nav→USBL
+- **Two tape readings still need confirming** (2026-10-12): the SPRINT-Nav→USBL
   x of 17 cm came from a "35 − 18" field note (the bottom-plate photo supports
-  16–24 cm); the iLBL z is assumed level with the USBL; and USBL→Voyis has never
-  been taped, which is what would close the CAD-vs-tape discrepancy above. The
-  SPRINT-Nav mounting yaw is also still assumed, not checked.
+  16–24 cm), and the iLBL z is assumed level with the USBL. The SPRINT-Nav
+  mounting yaw is also still assumed, not checked.
 - **The two DVL heads are 31 cm apart**, so under rotation they legitimately
   differ by `omega x r` — ~5.4 cm/s at 10 deg/s, the same order as DVL accuracy.
   Remove that before trusting any DVL-vs-DVL result.
