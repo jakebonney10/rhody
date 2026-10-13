@@ -1,0 +1,53 @@
+# Inverted LBL (iLBL) vehicle position, delivered as NMEA GGA over UDP.
+#
+# Two nodes share this file (see launch/ilbl.launch.py):
+#   /rhody/connections/ilbl   roship_io   udp_connection   raw datagrams
+#   /rhody/nav/sensors/ilbl   roship_vessel nmea_gga       NavSatFix on ~/fix
+#
+# TODO(ilbl): the iLBL's IP and UDP port are not known yet. Both values below
+# are PLACEHOLDERS to be replaced once the topside is on the bench. Two things
+# have to agree with the iLBL side:
+#   * sock.port   - the UDP port the iLBL sends GGA to. The socket binds
+#                   INADDR_ANY, so the Jetson's own address does not matter;
+#                   the iLBL just has to be pointed at this host (192.168.2.7
+#                   on the vehicle LAN) and this port.
+#   * sock.dst_hosts/dst_ports - where ~/to_device packets would be sent.
+#                   Nothing publishes on that topic, so this is only a record
+#                   of the iLBL address; it is never resolved unless something
+#                   sends. Fill it in anyway so the address lives in one place.
+
+/rhody/connections/ilbl:
+  ros__parameters:
+    sock:
+      port: 5000                       # PLACEHOLDER - iLBL output port
+      buffer_size: 1024
+      dst_hosts: ['192.168.2.250']     # PLACEHOLDER - iLBL address (unused)
+      dst_ports: [5000]                # PLACEHOLDER (unused)
+
+/rhody/nav/sensors/ilbl:
+  ros__parameters:
+    # ~/from_device of the udp_connection node above.
+    connection_topic: '/rhody/connections/ilbl/from_device'
+
+    # GGA from any two-character talker ($GPGGA, $GNGGA, $INGGA, ...).
+    # fnmatch glob, applied to the raw datagram before parsing.
+    message_filter: '$??GGA,*'
+
+    # NavSatFix on ~/fix. Fix quality 0 (no fix) sentences are dropped.
+    publish_ros_std: true
+
+    # Where the fix is referenced on the vehicle (sensor_msgs: "usually the
+    # location of the antenna"). ilbl_link is declared in rhody2.urdf.xacro,
+    # provisionally 6 cm to starboard of the USBL until measured.
+    frame_id: 'ilbl_link'
+
+    # /diagnostics, hardware_id 'ilbl', alongside the other rhody drivers.
+    publish_diagnostics: true
+    hardware_id: 'ilbl'
+
+    # Data-driven stream, no polling.
+    poll_ms: 0
+
+    # iLBL position updates are slow (acoustic ping cycle), so give it longer
+    # than the 3 s default before the Device task reports STALE.
+    stale_timeout_ms: 10000

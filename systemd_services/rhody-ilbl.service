@@ -1,0 +1,20 @@
+[Unit]
+Description=Rhody inverted LBL (iLBL) vehicle position (NMEA GGA over UDP)
+# No network-online ordering: this is a --user unit (that target lives in the
+# system manager). The transport is a UDP listener bound to INADDR_ANY, so
+# there is nothing to probe for reachability: the socket binds whether or not
+# the iLBL is up, and data simply starts flowing when the topside sends.
+# Restart=always covers the one real failure mode, which is the bind itself
+# failing (port already in use) and the node exiting.
+# StartLimitIntervalSec=0 disables restart-rate throttling so a held port keeps
+# being retried rather than the service giving up.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.config/systemd/user/rhody_ilbl.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

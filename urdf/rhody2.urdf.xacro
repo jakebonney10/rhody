@@ -14,25 +14,49 @@
   <!-- base_link follows REP-103: x forward, y port, z up. -->
 
   <!-- ==================================================================
-       base_link is the USBL.
+       base_link is the USBL (Subsonus transducer).
 
-       Every hull offset below was measured in Shapr3D *relative to the
-       Nucleus DVL*, because base_link used to sit there (as on Rhody 1).
-       Those measurements are kept verbatim and shifted into the USBL frame
-       by the single offset below, so the numbers in the comments still match
-       the model and a re-measure of the USBL<->DVL offset only changes one
-       place.
+       Two sets of numbers feed this file.
 
-       Anchored to the USBL rather than the Nucleus on purpose: the Nucleus is
-       a temporary test fit, and a base_link defined by a sensor that gets
-       removed leaves every other extrinsic referred to a point that is no
-       longer on the vehicle.
+       1. Tape measurements on the vehicle, 2026-10-12 (+/-1-2 cm; several
+          were taken twice). These place the SPRINT-Nav, the Nucleus and the
+          iLBL directly in the USBL frame:
+            SPRINT-Nav -> USBL     17 cm forward (*), 44 cm up, same y
+            SPRINT-Nav -> Nucleus  31 cm forward, 1 cm down, same y
+            USBL -> iLBL           5 cm aft, 28 cm port, z not measured
+          (*) The field note reads "35x-18x", taken here as 35 - 18 = 17 cm.
+              The bottom-plate photo puts the USBL 16-24 cm forward of the
+              SPRINT-Nav, so it is plausible. *** CONFIRM ***
 
-       USBL -> Nucleus DVL: dX 3.0246 in forward, dZ 12.1969 in below
-       (the USBL sits on top of the hull, aft of and above the DVL).
+       2. The Shapr3D model, measured relative to the Nucleus DVL in its
+          ORIGINAL design position (the round cutout aft of where the head
+          now sits), because base_link used to be there (as on Rhody 1).
+          The Gemini and Voyis still come from this chain, shifted into the
+          USBL frame by usbl_to_cad_dvl_*: the CAD's USBL -> DVL offset,
+          dX 3.0246 in forward, dZ 12.1969 in below. That is NOT where the
+          Nucleus is now. The head moved on 2026-10-12 and the cameras did
+          not, so the two must stay decoupled.
+
+       The two sets disagree on where that original Nucleus position is:
+       CAD (7.7, 0, -31) cm vs tape (-1, +6, -41.5) cm from the USBL. The z
+       gap is about the Subsonus's own height, so the CAD point is probably
+       the USBL base and the tape the transducer; the x/y gap is not
+       explained. Until USBL -> Voyis (or Gemini) is tape-measured directly,
+       the camera and sonar extrinsics are only good to ~10 cm against the
+       DVLs and USBL.
+       TODO: tape USBL -> Voyis left camera (x, y, z) and re-anchor the CAD
+       chain on it.
        ================================================================== -->
-  <xacro:property name="usbl_to_dvl_x" value="0.0768"  scope="global"/>
-  <xacro:property name="usbl_to_dvl_z" value="-0.3098" scope="global"/>
+  <xacro:property name="usbl_to_cad_dvl_x" value="0.0768"  scope="global"/>
+  <xacro:property name="usbl_to_cad_dvl_z" value="-0.3098" scope="global"/>
+
+  <!-- Tape, 2026-10-12: USBL -> SPRINT-Nav. The Nucleus and the iLBL below
+       are measured from these, so a corrected reading changes one place. -->
+  <xacro:property name="sprintnav_x" value="-0.17" scope="global"/>  <!-- 35 - 18 cm; CONFIRM -->
+  <xacro:property name="sprintnav_y" value="0.0"   scope="global"/>
+  <xacro:property name="sprintnav_z" value="-0.44" scope="global"/>
+  <xacro:property name="nucleus_fwd_of_sprintnav" value="0.31"/>
+  <xacro:property name="nucleus_below_sprintnav"  value="0.01"/>
 
   <!-- Base Link -->
   <link name="base_link">
@@ -71,11 +95,35 @@
     <origin xyz="0 0 0" rpy="${pi} 0 0"/>
   </joint>
 
+  <!-- Inverted LBL (iLBL) transducer. An independent sensor, not part of the
+       Subsonus: it ranges to seabed beacons and reports a world-referenced
+       position, published as NavSatFix on /rhody/nav/sensors/ilbl/fix with
+       frame_id ilbl_link (config/ilbl.yaml). This link is where that fix is
+       referenced on the vehicle, i.e. the antenna offset a navsat_transform
+       would apply. No body vectors are published, so no device-axes rotation
+       is declared; identity to base_link.
+
+       Tape, 2026-10-12: 5 cm aft and 28 cm to port of the USBL (seen head-on
+       from the bow the iLBL is aft and to the viewer's right, which is port).
+       It mounts on the black plate beside the USBL on the top deck.
+       *** PROVISIONAL z: *** not measured, assumed level with the USBL. -->
+  <link name="ilbl_link"/>
+  <joint name="base_to_ilbl" type="fixed">
+    <parent link="base_link"/>
+    <child link="ilbl_link"/>
+    <origin xyz="-0.05 0.28 0" rpy="0 0 0"/>
+  </joint>
+
   <!-- Nortek Nucleus 1000 DVL. Named to match what nucleus_driver_ros2
        actually publishes (frame_id: nucleus_dvl) and the sensor_fov.yaml
        section and meshes/fov/nucleus_dvl_*.stl, rather than the old generic
        dvl_link - there are two DVLs on the vehicle, so "the DVL" is ambiguous.
-       Origin is the Shapr3D USBL->DVL measurement.
+
+       Origin: tape, 2026-10-12, from the SPRINT-Nav: 31 cm forward, 1 cm
+       lower (the Nucleus sits proud of the bottom plate, the SPRINT-Nav is
+       recessed), same y. The head was moved that day from the CAD position
+       (the round cutout aft of it): 15.5 cm forward, 6 cm to starboard and
+       4 cm lower. usbl_to_cad_dvl_* still names the old position, on purpose.
 
        ORIENTATION: this frame IS the instrument's own axes, per REP-145 - the
        driver publishes every topic exactly as the device reports it, and this
@@ -84,32 +132,31 @@
        x-forward, y-starboard, z-down, which is a 180 deg roll from base_link
        (x-forward, y-port, z-up). That assumes the head is fitted with its
        X-axis pointing forward, which Nortek recommends but does not require
-       (section 4.3). *** PROVISIONAL - confirm the mounting yaw on the
-       vehicle. *** The connector direction is the quickest tell: in figure 4
-       the connector exits along -X, i.e. aft when X points forward. -->
+       (section 4.3). Mounting yaw confirmed from the 2026-10-12 bottom-plate
+       photo: the engraved X arrow points away from the connector, and the
+       connector points aft at the SPRINT-Nav (figure 4: connector exits
+       along -X), so X is forward; the Y arrow points to starboard when
+       viewed from below, as FRD requires. -->
   <link name="nucleus_dvl"/>
   <joint name="base_to_nucleus" type="fixed">
     <parent link="base_link"/>
     <child link="nucleus_dvl"/>
-    <origin xyz="${usbl_to_dvl_x} 0 ${usbl_to_dvl_z}" rpy="${pi} 0 0"/>
+    <origin xyz="${sprintnav_x + nucleus_fwd_of_sprintnav} ${sprintnav_y} ${sprintnav_z - nucleus_below_sprintnav}"
+            rpy="${pi} 0 0"/>
   </joint>
 
   <!-- Sonardyne SPRINT-Nav Mini INS/DVL, the second DVL aboard for the
-       comparison testing.
+       comparison testing. Bottom-mounted, recessed in the plate, aft of the
+       Nucleus and on the same lateral line as it and the USBL.
 
-       *** PROVISIONAL - NOT MEASURED. *** From recollection: bottom-mounted
-       like the Nucleus, on the centerline, roughly 8 in (0.2032 m) aft of the
-       Nucleus. z is assumed equal to the Nucleus since both sit on the hull
-       bottom, and the orientation is assumed aligned with base_link. Neither
-       was measured.
+       Origin: tape, 2026-10-12 (sprintnav_* above): 17 cm aft of and 44 cm
+       below the USBL, same y. The 17 is "35 - 18" in the field notes and
+       needs confirming; the z and y are direct readings.
 
-       This matters for the two-DVL comparison: the two heads are separated by
-       a lever arm r, so under rotation they legitimately measure different
-       velocities by omega x r. At 0.2 m and 10 deg/s that is ~3.5 cm/s, the
-       same order as DVL accuracy, so comparison results are only as good as
-       this number. An uncorrected mounting yaw rotates the velocity vector
-       between the two frames on top of that.
-       TODO: measure dX/dY/dZ and the mounting orientation.
+       The lever arm to the Nucleus is now 31 cm, not the 20 cm that was
+       guessed before: under rotation the two heads legitimately differ by
+       omega x r, ~5.4 cm/s at 0.31 m and 10 deg/s, the same order as DVL
+       accuracy. Any DVL-vs-DVL comparison has to remove that first.
 
        Note: HNAV depth is reported at the vehicle CRP configured on the
        device web UI; HNAV altitude is at the DVL head (not attitude
@@ -120,19 +167,19 @@
        x-forward, y-starboard, z-down (FRD), a 180 deg roll from base_link.
        Assumes the unit is fitted DVL-face down with its forward axis along
        the vehicle's, like the Nucleus. *** PROVISIONAL - confirm the
-       mounting yaw on the vehicle *** (same tell as the Nucleus: with the
-       vehicle still, velocity.z and the HNAV status telegram should agree
-       on sign with the Nucleus's, and a forward nudge must give +x). -->
-  <xacro:property name="sprintnav_aft_of_nucleus" value="0.2032"/>
+       mounting yaw on the vehicle *** (the face carries no visible forward
+       mark; with the vehicle still, velocity.z and the HNAV status telegram
+       should agree on sign with the Nucleus's, and a forward nudge must give
+       +x). -->
   <link name="sprintnav_link"/>
   <joint name="base_to_sprintnav" type="fixed">
     <parent link="base_link"/>
     <child link="sprintnav_link"/>
-    <origin xyz="${usbl_to_dvl_x - sprintnav_aft_of_nucleus} 0 ${usbl_to_dvl_z}"
-            rpy="${pi} 0 0"/>
+    <origin xyz="${sprintnav_x} ${sprintnav_y} ${sprintnav_z}" rpy="${pi} 0 0"/>
   </joint>
 
-  <!-- FLS (Gemini): measured in Shapr3D from sonar to DVL:
+  <!-- FLS (Gemini): measured in Shapr3D from sonar to the DVL's CAD position
+       (see usbl_to_cad_dvl_* at the top; not the Nucleus's current spot):
        dX 14.9247 in, dY 6.0827 in, dZ 8.7819 in (0.3791, 0.1545, 0.2231 m).
        Forward of the DVL, port of centerline, above the DVL.
        5 deg down pitch.
@@ -142,7 +189,7 @@
   <joint name="base_to_gemini" type="fixed">
     <parent link="base_link"/>
     <child link="gemini_fls"/>
-    <origin xyz="${0.3791 + usbl_to_dvl_x} 0.1545 ${0.2231 + usbl_to_dvl_z}"
+    <origin xyz="${0.3791 + usbl_to_cad_dvl_x} 0.1545 ${0.2231 + usbl_to_cad_dvl_z}"
             rpy="0 ${5.0 * deg} 0"/>
   </joint>
 
@@ -156,8 +203,9 @@
     </joint>
   </xacro:macro>
 
-  <!-- Voyis Stereo: measured in Shapr3D from left camera to DVL (shifted
-       into the USBL frame by usbl_to_dvl_*, like the others):
+  <!-- Voyis Stereo: measured in Shapr3D from left camera to the DVL's CAD
+       position (shifted into the USBL frame by usbl_to_cad_dvl_*, like the
+       Gemini; see the note at the top on how well that chain is anchored):
        dX 12.0228 in, dZ 3.5748 in (0.3054, 0.0908 m). The stereo pair is
        centered on the vehicle centerline, so each camera sits at
        +/- baseline/2 in y. voyis_baseline must match the factory stereo
@@ -175,7 +223,7 @@
   <joint name="base_to_voyis_left" type="fixed">
     <parent link="base_link"/>
     <child link="voyis_left_link"/>
-    <origin xyz="${voyis_x + usbl_to_dvl_x} ${voyis_baseline/2} ${voyis_z + usbl_to_dvl_z}" rpy="0 0 0"/>
+    <origin xyz="${voyis_x + usbl_to_cad_dvl_x} ${voyis_baseline/2} ${voyis_z + usbl_to_cad_dvl_z}" rpy="0 0 0"/>
   </joint>
   <xacro:optical_frame name="voyis_left_optical" parent="voyis_left_link"/>
 
@@ -184,7 +232,7 @@
   <joint name="base_to_voyis_right" type="fixed">
     <parent link="base_link"/>
     <child link="voyis_right_link"/>
-    <origin xyz="${voyis_x + usbl_to_dvl_x} ${-voyis_baseline/2} ${voyis_z + usbl_to_dvl_z}" rpy="0 0 0"/>
+    <origin xyz="${voyis_x + usbl_to_cad_dvl_x} ${-voyis_baseline/2} ${voyis_z + usbl_to_cad_dvl_z}" rpy="0 0 0"/>
   </joint>
   <xacro:optical_frame name="voyis_right_optical" parent="voyis_right_link"/>
 

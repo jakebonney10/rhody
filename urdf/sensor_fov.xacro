@@ -93,7 +93,7 @@
     <child link="waterlinked_link"/>
     <!-- Mirror of the FLS mount, so it carries the same DVL-referenced
          measurement shifted into the USBL frame. -->
-    <origin xyz="${0.3791 + usbl_to_dvl_x} -0.1545 ${0.2231 + usbl_to_dvl_z}"
+    <origin xyz="${0.3791 + usbl_to_cad_dvl_x} -0.1545 ${0.2231 + usbl_to_cad_dvl_z}"
             rpy="0 ${5.0 * fov_deg} 0"/>
   </joint>
 

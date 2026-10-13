@@ -10,7 +10,8 @@ run `ros2 run tf2_tools view_frames` to generate a diagram of the TF tree.
 base_link (= USBL)
 ├─ usbl_link          identity
 ├─ nucleus_dvl        Nortek Nucleus 1000
-├─ sprintnav_link     SPRINT-Nav Mini      *** PROVISIONAL, NOT MEASURED ***
+├─ sprintnav_link     SPRINT-Nav Mini      tape-measured 2026-10-12
+├─ ilbl_link          iLBL transducer      tape-measured 2026-10-12 (z assumed)
 ├─ gemini_fls         Gemini 1200ik FLS, 5 deg down
 ├─ voyis_left_link  ──┬─ voyis_left_optical
 │                     └─ voyis_imu         (identity placeholder)
@@ -60,6 +61,7 @@ What that means per sensor, and the frame each one is declared in:
 | Subsonus (`usbl_link`) | as reported | FRD, 180° roll (device set to *Subsea* alignment) | NED→ENU in driver |
 | Voyis (`voyis_*_optical`) | as reported | optical, per REP-103 suffix frame | — |
 | Gemini (`gemini_fls`) | sonar angles, consumer-interpreted | 5° down pitch | — |
+| iLBL (`ilbl_link`) | none (world-referenced fix only) | identity, 5 cm aft and 28 cm port of USBL (tape 2026-10-12, z assumed level) | fix is lat/lon, n/a |
 | mavros | converts to ENU/FLU itself | `base_link_frd`/`map_ned` aliases | ENU |
 
 mavros is upstream and the one accepted exception: it converts in the driver
@@ -79,20 +81,32 @@ fit for the two-DVL comparison, and a `base_link` defined by a sensor that gets
 removed leaves every other extrinsic referred to a point no longer on the
 vehicle. So `base_link` moved to the USBL, which is permanent.
 
-The original measurements are kept verbatim in `rhody2.urdf.xacro` and shifted
-into the USBL frame by a single pair of properties (`usbl_to_dvl_x/z`), so
-re-measuring the USBL↔DVL offset is a one-line change. The move is a pure
-translation: every sensor-to-sensor transform is unchanged, which is also why
-the FOV meshes and the coverage-overlap figures did not need regenerating.
+The Shapr3D measurements for the Gemini and Voyis are kept verbatim in
+`rhody2.urdf.xacro` and shifted into the USBL frame by a single pair of
+properties, `usbl_to_cad_dvl_x/z`: the CAD's USBL→DVL offset, i.e. the
+Nucleus's *original* position (the round cutout in the bottom plate). The
+Nucleus itself was moved 15.5 cm forward of that cutout on 2026-10-12, so the
+property deliberately no longer tracks the head; the cameras and sonar did not
+move. The DVLs and the iLBL are placed from tape measurements taken the same
+day (see the header comment in the xacro for the numbers and what each one was
+measured against).
+
+**Open discrepancy.** CAD puts the original Nucleus position at (7.7, 0, −31) cm
+from the USBL; the tape puts it at (−1, +6, −41.5) cm. The z gap is about the
+Subsonus's own height (CAD base vs tape to the transducer), the x/y gap is not
+explained. Until USBL→Voyis (or Gemini) is taped directly, treat the camera and
+sonar positions as good to ~10 cm relative to the DVLs and USBL.
 
 ### Known gaps
 
-- **`sprintnav_link` is provisional and not measured.** It is placed 8 in
-  (0.2032 m) aft of the Nucleus on the centerline, with z assumed equal (both
-  are bottom-mounted) and orientation assumed aligned. This bounds the two-DVL
-  comparison: the heads are separated by a lever arm `r`, so under rotation they
-  legitimately differ by `omega x r` — ~3.5 cm/s at 0.2 m and 10 deg/s, the same
-  order as DVL accuracy. Measure it before trusting any DVL-vs-DVL result.
+- **Three tape readings still need confirming** (2026-10-12): the SPRINT-Nav→USBL
+  x of 17 cm came from a "35 − 18" field note (the bottom-plate photo supports
+  16–24 cm); the iLBL z is assumed level with the USBL; and USBL→Voyis has never
+  been taped, which is what would close the CAD-vs-tape discrepancy above. The
+  SPRINT-Nav mounting yaw is also still assumed, not checked.
+- **The two DVL heads are 31 cm apart**, so under rotation they legitimately
+  differ by `omega x r` — ~5.4 cm/s at 10 deg/s, the same order as DVL accuracy.
+  Remove that before trusting any DVL-vs-DVL result.
 - **`map` and `odom` are disconnected islands.** `gps2map.launch.xml` publishes
   `utm_local -> map -> odom` and the EKF/`mru_transform` would publish
   `odom -> base_link`, but none of those run as services, so under the service
@@ -615,6 +629,67 @@ messages reported lost on the transport layer before; 0 and 0 after. Host-wide
 
 ---
 
+## Inverted LBL (iLBL) vehicle position
+
+The iLBL topside sends the vehicle's position as NMEA GGA sentences over UDP.
+`rhody-ilbl.service` turns that into a `sensor_msgs/NavSatFix` on
+`/rhody/nav/sensors/ilbl/fix` using two generic roship nodes rather than a
+device-specific driver:
+
+```
+UDP :5000 ──▶ roship_io/udp_connection      /rhody/connections/ilbl/from_device  (io_interfaces/RawPacket)
+              roship_vessel/nmea_gga     ──▶ /rhody/nav/sensors/ilbl/fix          (sensor_msgs/NavSatFix)
+```
+
+```bash
+systemctl --user status rhody-ilbl.service
+journalctl --user-unit rhody-ilbl.service -f
+ros2 topic echo /rhody/nav/sensors/ilbl/fix
+```
+
+**The iLBL's IP and port are still placeholders** (`sock.port: 5000`,
+`sock.dst_hosts` in `config/ilbl.yaml`) until the topside is on the bench.
+Only the port actually matters: the transport binds `INADDR_ANY`, so the iLBL
+just has to be pointed at this host (`192.168.2.7`) and that port. The
+`dst_hosts`/`dst_ports` pair is where `~/to_device` packets would go; nothing
+publishes there, so it is only a record of the iLBL address.
+
+| File | Owns |
+|---|---|
+| `config/ilbl.yaml` | UDP port, iLBL address placeholder, GGA filter, stale timeout |
+| `launch/ilbl.launch.py` | both nodes, namespaces `rhody/connections` and `rhody/nav/sensors` |
+| `systemd_services/rhody-ilbl.service` | the unit |
+| `systemd_services/rhody_ilbl.sh` | the launch wrapper |
+
+### Gotchas this setup already handles
+
+- **`io_interfaces` is not in `roship_io` any more.** `roship_io` and
+  `roship_vessel` both depend on `io_interfaces/msg/RawPacket`, which upstream
+  moved out of `roship_io` into the `roship_interfaces` metapackage. That repo
+  is the `src/roship_interfaces` submodule; without it neither package
+  configures. `roship_io` also needs `libmodbus-dev`, `libserialport-dev` and
+  `libmosquitto-dev` from apt, even though only the UDP node is used here.
+- **No reachability probe, unlike nucleus.** A UDP listener binds whether or
+  not the iLBL is up, so the service starts cleanly with the topside off and
+  simply publishes nothing. The only bind failure is a held port, which
+  `Restart=always` retries.
+- **Fix quality 0 is dropped, not published.** `nmea_gga` skips GGA sentences
+  whose fix-quality field is 0, so an iLBL with no solution produces no
+  `fix` messages at all rather than a `NavSatFix` with `STATUS_NO_FIX`. Use
+  the `/diagnostics` entry (hardware ID `ilbl`) to tell "no solution" from
+  "no data": its Device task goes STALE after `stale_timeout_ms` (10 s here,
+  longer than the 3 s default because the acoustic ping cycle is slow).
+- **The fix is stamped `ilbl_link`, not `world`.** Upstream `nmea_gga`
+  hard-codes `world`, which is wrong by the `NavSatFix` definition (frame_id is
+  the vehicle-fixed antenna/transducer frame). The workspace copy of
+  `roship_vessel` adds a `frame_id` parameter (empty = upstream default, so the
+  change is behaviour-preserving) and `ilbl.yaml` sets it. `ilbl_link` is in
+  `rhody2.urdf.xacro`, provisionally 6 cm to starboard of the USBL until it is
+  measured. Not yet upstreamed.
+- **GGA from any talker is accepted.** `message_filter: '$??GGA,*'` matches
+  `$GPGGA`, `$GNGGA`, `$INGGA`, etc. Tighten it once the iLBL's talker ID is
+  known if anything else ever shares the port.
+
 ## Nortek Nucleus 1000 DVL
 
 Runs as a user systemd service in **listen-only** mode: the driver attaches to
@@ -656,7 +731,7 @@ device is usable for navigation.
 | Task | OK | WARN | ERROR / STALE |
 |---|---|---|---|
 | `Connection` | `receiving` | `connected, no data - is measurement started?` | `not connected`, or `data timeout` in full-control mode |
-| `Decoder` | `decoding N packets` | `N unrecognised packet(s)` — firmware/parser mismatch | STALE until the first packet |
+| `Decoder` | `decoding N packets` | `N unrecognised packet(s) [0xNN xK, ...]` — the parser does not know those IDs (firmware/parser mismatch). IDs the parser decodes but the node has no publisher for (`fast_pressure`, `ascii`, `adcp`, `spectrum_analyzer`) are listed under `not published:` and do not warn | STALE until the first packet |
 | `Bottom Track` | `bottom lock` | `no bottom lock` (off-bottom/out of range) | STALE until the first bottom-track packet |
 
 `Connection` also carries the endpoint, seconds since last data, connect count

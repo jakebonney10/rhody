@@ -60,6 +60,12 @@ systemctl --user restart rhody-description.service
 systemctl --user enable rhody-nucleus.service
 systemctl --user restart rhody-nucleus.service
 
+# Inverted LBL vehicle position (NMEA GGA over UDP -> NavSatFix). A plain UDP
+# listener, so it starts cleanly with the iLBL powered off and just waits.
+# config/ilbl.yaml still carries placeholder IP/port until the topside is known.
+systemctl --user enable rhody-ilbl.service
+systemctl --user restart rhody-ilbl.service
+
 # MCAP bag recorder (stock rosbag2). Enabled so it is up on every boot, but it
 # comes up paused and writes nothing until an operator calls
 # /rhody/data/rosbag2_recorder/resume, so enabling it does not start filling
@@ -91,5 +97,7 @@ echo "  systemctl --user status rhody-rosbag.service"
 echo "  journalctl --user -u rhody-rosbag.service -f"
 echo "  systemctl --user status rhody-nucleus.service"
 echo "  journalctl --user -u rhody-nucleus.service -f"
+echo "  systemctl --user status rhody-ilbl.service"
+echo "  journalctl --user -u rhody-ilbl.service -f"
 echo "  systemctl --user status rhody-description.service"
 echo "  ros2 run tf2_tools view_frames   # confirm the tree is one connected piece"
